@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/vk-pbr-engine.iml" filepath="$PROJECT_DIR$/.idea/vk-pbr-engine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/vk_pbr_engine.iml" filepath="$PROJECT_DIR$/.idea/vk_pbr_engine.iml" />
     </modules>
   </component>
 </project>
