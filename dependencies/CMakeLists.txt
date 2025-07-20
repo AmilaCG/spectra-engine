@@ -35,4 +35,11 @@ FetchContent_Declare(
         GIT_SHALLOW    TRUE
 )
 
-FetchContent_MakeAvailable(glm glfw vma stb_image tinygltf)
+FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui.git
+        GIT_TAG        v1.92.1
+        GIT_SHALLOW    TRUE
+)
+
+FetchContent_MakeAvailable(glm glfw vma imgui stb_image tinygltf)
