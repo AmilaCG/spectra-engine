@@ -8,7 +8,9 @@ include(dependencies/CMakeLists.txt)
 include_directories(includes)
 
 add_executable(vk_pbr_engine
-        main.cpp
+        src/main.cpp
+        src/Application.cpp
+        src/Renderer.cpp
 )
 
 target_sources(vk_pbr_engine PRIVATE
