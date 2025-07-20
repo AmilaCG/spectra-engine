@@ -24,5 +24,7 @@ CMakeUserPresets.json
 .idea/**/dictionaries
 .idea/**/shelf
 
+.idea/vcs.xml
+
 # CMake
 cmake-build-*/
