@@ -4,10 +4,14 @@
 
 #include "Application.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "Renderer.h"
 
 namespace vkpbr {
+Application::~Application()
+{
+    Close();
+}
+
 void Application::Init()
 {
     InitWindow();
@@ -15,10 +19,13 @@ void Application::Init()
 
 void Application::Run()
 {
+    Renderer renderer(m_window);
 }
 
 void Application::Close()
 {
+    glfwDestroyWindow(m_window);
+    glfwTerminate();
 }
 
 // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/00_Base_code.html#_integrating_glfw
@@ -27,5 +34,7 @@ void Application::InitWindow()
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Do not create an OpenGL context
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // Disable window resizing for now
+
+    m_window = glfwCreateWindow(1280, 720, "PBR Engine", nullptr, nullptr);
 }
 } // vkpbr

@@ -5,11 +5,15 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include "Application.h"
+#include <GLFW/glfw3.h>
 
 namespace vkpbr {
-class Renderer : public Application {
+class Renderer {
+public:
+    explicit Renderer(GLFWwindow* window);
 
+private:
+    void Draw(GLFWwindow* window);
 };
 } // vkpbr
 

@@ -5,18 +5,24 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+#define GLFW_INCLUDE_VULKAN
+#include "GLFW/glfw3.h"
+
 namespace vkpbr {
 
 class Application {
 public:
-    virtual ~Application() = default;
+    ~Application();
 
-    virtual void Init();
-    virtual void Run();
-    virtual void Close();
+    void Init();
+    void Run();
+    void Close();
 
 private:
     void InitWindow();
+
+private:
+    GLFWwindow* m_window{};
 };
 
 } // vkpbr
