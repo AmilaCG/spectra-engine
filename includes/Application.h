@@ -16,7 +16,6 @@ public:
 
     void Init();
     void Run();
-    void Close();
 
 private:
     void InitWindow();

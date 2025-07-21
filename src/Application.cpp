@@ -9,7 +9,8 @@
 namespace vkpbr {
 Application::~Application()
 {
-    Close();
+    glfwDestroyWindow(m_window);
+    glfwTerminate();
 }
 
 void Application::Init()
@@ -20,12 +21,6 @@ void Application::Init()
 void Application::Run()
 {
     Renderer renderer(m_window);
-}
-
-void Application::Close()
-{
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
 }
 
 // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/00_Base_code.html#_integrating_glfw
