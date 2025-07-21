@@ -1,6 +1,10 @@
 #include <iostream>
 
+#include "Application.h"
+
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    vkpbr::Application app;
+    app.Init();
+
     return 0;
 }

@@ -38,4 +38,5 @@ target_link_libraries(vk_pbr_engine
         glfw
         VulkanMemoryAllocator
         tinygltf
+        vk-bootstrap
 )

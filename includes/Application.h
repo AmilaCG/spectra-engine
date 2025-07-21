@@ -14,6 +14,9 @@ public:
     virtual void Init();
     virtual void Run();
     virtual void Close();
+
+private:
+    void InitWindow();
 };
 
 } // vkpbr
