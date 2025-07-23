@@ -5,7 +5,6 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
 namespace vkpbr {

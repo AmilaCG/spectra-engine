@@ -11,6 +11,7 @@ add_executable(vk_pbr_engine
         src/main.cpp
         src/Application.cpp
         src/Renderer.cpp
+        src/vulkan/Context.cpp
 )
 
 target_sources(vk_pbr_engine PRIVATE
@@ -27,7 +28,11 @@ target_include_directories(vk_pbr_engine PRIVATE
         ${imgui_SOURCE_DIR}
 )
 
-target_compile_definitions(vk_pbr_engine PRIVATE STB_IMAGE_IMPLEMENTATION)
+target_compile_definitions(vk_pbr_engine
+        PRIVATE
+        STB_IMAGE_IMPLEMENTATION
+        GLFW_INCLUDE_VULKAN
+)
 
 find_package(Vulkan REQUIRED)
 

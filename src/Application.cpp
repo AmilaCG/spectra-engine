@@ -4,6 +4,7 @@
 
 #include "Application.h"
 
+#include "Context.h"
 #include "Renderer.h"
 
 namespace vkpbr {
@@ -16,6 +17,8 @@ Application::~Application()
 void Application::init()
 {
     initWindow();
+
+    vk::Context vkContext(m_window);
 }
 
 void Application::run()
