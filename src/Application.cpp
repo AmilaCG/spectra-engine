@@ -10,7 +10,7 @@
 namespace vkpbr {
 Application::~Application()
 {
-    glfwDestroyWindow(m_window);
+    glfwDestroyWindow(window_);
     glfwTerminate();
 }
 
@@ -18,12 +18,12 @@ void Application::init()
 {
     initWindow();
 
-    vk::Context vkContext(m_window);
+    vk::Context vkContext(window_);
 }
 
 void Application::run()
 {
-    Renderer renderer(m_window);
+    Renderer renderer(window_);
 }
 
 // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/00_Base_code.html#_integrating_glfw
@@ -33,6 +33,6 @@ void Application::initWindow()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Do not create an OpenGL context
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // Disable window resizing for now
 
-    m_window = glfwCreateWindow(1280, 720, "PBR Engine", nullptr, nullptr);
+    window_ = glfwCreateWindow(1280, 720, "PBR Engine", nullptr, nullptr);
 }
 } // vkpbr

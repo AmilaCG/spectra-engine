@@ -12,6 +12,9 @@ namespace vkpbr::vk {
 class Context {
 public:
     Context(GLFWwindow* window);
+
+public:
+    VkDevice device;
 };
 
 } // vkpbr::vk

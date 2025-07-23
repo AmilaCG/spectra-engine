@@ -20,7 +20,7 @@ private:
     void initWindow();
 
 private:
-    GLFWwindow* m_window{};
+    GLFWwindow* window_{};
 };
 
 } // vkpbr

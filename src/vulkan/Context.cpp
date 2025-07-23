@@ -19,7 +19,7 @@ Context::Context(GLFWwindow* window)
                            .build();
     if (!instance)
     {
-        throw std::runtime_error(std::format("Failed to create Vulkan instance {}\n", instance.error().message()));
+        throw std::runtime_error(std::format("Failed to create Vulkan instance: {}\n", instance.error().message()));
     }
     vkb::Instance vkbInstance = instance.value();
 
@@ -27,8 +27,23 @@ Context::Context(GLFWwindow* window)
     VkResult glfwResult = glfwCreateWindowSurface(vkbInstance, window, nullptr, &surface);
     if (glfwResult != VK_SUCCESS)
     {
-        throw std::runtime_error(std::format("Failed to create Vulkan surface {}\n", std::to_string(glfwResult)));
+        throw std::runtime_error(std::format("Failed to create Vulkan surface: {}\n", std::to_string(glfwResult)));
     }
+
+    vkb::PhysicalDeviceSelector selector(vkbInstance);
+    auto physicalDeviceRet = selector.set_surface(surface).select();
+    if (!physicalDeviceRet)
+    {
+        throw std::runtime_error(std::format("Failed to select physical device: {}\n", physicalDeviceRet.error().message()));
+    }
+
+    vkb::DeviceBuilder deviceBuilder(physicalDeviceRet.value());
+    auto deviceRet = deviceBuilder.build();
+    if (!deviceRet)
+    {
+        throw std::runtime_error(std::format("Failed to create physical device: {}\n", deviceRet.error().message()));
+    }
+    device = deviceRet.value().device;
 }
 
 } // vkpbr
