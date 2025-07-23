@@ -13,7 +13,7 @@ public:
     explicit Renderer(GLFWwindow* window);
 
 private:
-    void Draw(GLFWwindow* window);
+    void draw(GLFWwindow* window);
 };
 } // vkpbr
 

@@ -13,18 +13,18 @@ Application::~Application()
     glfwTerminate();
 }
 
-void Application::Init()
+void Application::init()
 {
-    InitWindow();
+    initWindow();
 }
 
-void Application::Run()
+void Application::run()
 {
     Renderer renderer(m_window);
 }
 
 // https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/00_Base_code.html#_integrating_glfw
-void Application::InitWindow()
+void Application::initWindow()
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Do not create an OpenGL context

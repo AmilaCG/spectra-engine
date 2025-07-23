@@ -14,11 +14,11 @@ class Application {
 public:
     ~Application();
 
-    void Init();
-    void Run();
+    void init();
+    void run();
 
 private:
-    void InitWindow();
+    void initWindow();
 
 private:
     GLFWwindow* m_window{};

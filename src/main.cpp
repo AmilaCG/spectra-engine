@@ -4,8 +4,8 @@
 
 int main() {
     vkpbr::Application app;
-    app.Init();
-    app.Run();
+    app.init();
+    app.run();
 
     return 0;
 }

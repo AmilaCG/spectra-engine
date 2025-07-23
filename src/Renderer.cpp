@@ -9,10 +9,10 @@ Renderer::Renderer(GLFWwindow* window)
 {
     // TODO: Init Vulkan stuff
 
-    Draw(window);
+    draw(window);
 }
 
-void Renderer::Draw(GLFWwindow* window)
+void Renderer::draw(GLFWwindow* window)
 {
     while (!glfwWindowShouldClose(window))
     {
