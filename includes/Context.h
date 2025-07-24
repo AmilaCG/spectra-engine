@@ -6,15 +6,26 @@
 #define CONTEXT_H
 
 #include <GLFW/glfw3.h>
+#include <VkBootstrap.h>
 
 namespace vkpbr::vk {
 
 class Context {
 public:
-    Context(GLFWwindow* window);
+    Context();
+    ~Context();
 
 public:
-    VkDevice device;
+    GLFWwindow* pWindow = nullptr;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue graphicsQueue = VK_NULL_HANDLE;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+
+private:
+    vkb::Instance vkbInstance_{};
+    vkb::Device vkbDevice_{};
+    vkb::Swapchain vkbSwapchain_{};
 };
 
 } // vkpbr::vk

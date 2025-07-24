@@ -5,13 +5,16 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
+#include <memory>
+#include "Context.h"
+#include "Renderer.h"
 
 namespace vkpbr {
 
 class Application {
 public:
-    ~Application();
+    Application();
 
     void init();
     void run();
@@ -20,7 +23,8 @@ private:
     void initWindow();
 
 private:
-    GLFWwindow* window_{};
+    vk::Context vkContext_{};
+    std::unique_ptr<Renderer> pRenderer_;
 };
 
 } // vkpbr

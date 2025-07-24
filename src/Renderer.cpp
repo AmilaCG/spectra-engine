@@ -5,11 +5,10 @@
 #include "Renderer.h"
 
 namespace vkpbr {
-Renderer::Renderer(GLFWwindow* window)
+Renderer::Renderer()
 {
     // TODO: Init Vulkan stuff
 
-    draw(window);
 }
 
 void Renderer::draw(GLFWwindow* window)

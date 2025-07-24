@@ -10,9 +10,8 @@
 namespace vkpbr {
 class Renderer {
 public:
-    explicit Renderer(GLFWwindow* window);
+    Renderer();
 
-private:
     void draw(GLFWwindow* window);
 };
 } // vkpbr
