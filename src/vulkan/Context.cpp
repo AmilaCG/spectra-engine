@@ -21,6 +21,7 @@ Context::Context()
         throw std::runtime_error(std::format("Failed to create Vulkan instance: {}\n", instanceRet.error().message()));
     }
     vkbInstance_ = instanceRet.value();
+    instance = vkbInstance_.instance;
 
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Do not create an OpenGL context
