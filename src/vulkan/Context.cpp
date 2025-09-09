@@ -7,12 +7,14 @@
 #include <format>
 #include <stdexcept>
 
-namespace vkpbr::vk {
+#include "Utilities.h"
+
+namespace spectra::vk {
 
 Context::Context()
 {
     vkb::InstanceBuilder builder;
-    auto instanceRet = builder.set_app_name("PBR Engine")
+    auto instanceRet = builder.set_app_name("Spectra Engine")
                               .request_validation_layers()
                               .use_default_debug_messenger()
                               .build();
@@ -26,7 +28,7 @@ Context::Context()
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Do not create an OpenGL context
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // Disable window resizing for now
-    pWindow = glfwCreateWindow(1280, 720, "PBR Engine", nullptr, nullptr);
+    pWindow = glfwCreateWindow(1280, 720, "Spectra Engine", nullptr, nullptr);
 
     VkResult glfwResult = glfwCreateWindowSurface(vkbInstance_, pWindow, nullptr, &surface);
     if (glfwResult != VK_SUCCESS)
@@ -77,4 +79,4 @@ Context::~Context()
     glfwTerminate();
 }
 
-} // vkpbr::vk
+} // spectra::vk

@@ -4,7 +4,7 @@
 
 #include "Renderer.h"
 
-namespace vkpbr {
+namespace spectra {
 Renderer::Renderer()
 {
     // TODO: Init Vulkan stuff
@@ -18,4 +18,4 @@ void Renderer::draw(GLFWwindow* window)
         glfwPollEvents();
     }
 }
-} // vkpbr
+} // spectra

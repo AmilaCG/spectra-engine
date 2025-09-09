@@ -6,7 +6,7 @@
 
 #include "Renderer.h"
 
-namespace vkpbr {
+namespace spectra {
 Application::Application()
 {
     pRenderer_ = std::make_unique<Renderer>();
@@ -17,4 +17,4 @@ void Application::run()
     pRenderer_->draw(vkContext_.pWindow);
 }
 
-} // vkpbr
+} // spectra

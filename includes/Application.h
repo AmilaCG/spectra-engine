@@ -10,7 +10,7 @@
 #include "Context.h"
 #include "Renderer.h"
 
-namespace vkpbr {
+namespace spectra {
 
 class Application {
 public:
@@ -27,6 +27,6 @@ private:
     std::unique_ptr<Renderer> pRenderer_;
 };
 
-} // vkpbr
+} // spectra
 
 #endif //APPLICATION_H

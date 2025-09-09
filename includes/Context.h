@@ -8,7 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-namespace vkpbr::vk {
+namespace spectra::vk {
 
 class Context {
 public:
@@ -29,6 +29,6 @@ private:
     vkb::Swapchain vkbSwapchain_{};
 };
 
-} // vkpbr::vk
+} // spectra::vk
 
 #endif //CONTEXT_H

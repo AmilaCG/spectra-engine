@@ -7,13 +7,13 @@
 
 #include <GLFW/glfw3.h>
 
-namespace vkpbr {
+namespace spectra {
 class Renderer {
 public:
     Renderer();
 
     void draw(GLFWwindow* window);
 };
-} // vkpbr
+} // spectra
 
 #endif //RENDERER_H
