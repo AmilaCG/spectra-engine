@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(vk_pbr_engine)
+project(spectra)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -7,14 +7,14 @@ include(dependencies/CMakeLists.txt)
 
 include_directories(includes)
 
-add_executable(vk_pbr_engine
+add_executable(${PROJECT_NAME}
         src/main.cpp
         src/Application.cpp
         src/Renderer.cpp
         src/vulkan/Context.cpp
 )
 
-target_sources(vk_pbr_engine PRIVATE
+target_sources(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
         ${imgui_SOURCE_DIR}/imgui_widgets.cpp
@@ -24,11 +24,11 @@ target_sources(vk_pbr_engine PRIVATE
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
 )
 
-target_include_directories(vk_pbr_engine PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}
 )
 
-target_compile_definitions(vk_pbr_engine
+target_compile_definitions(${PROJECT_NAME}
         PRIVATE
         STB_IMAGE_IMPLEMENTATION
         GLFW_INCLUDE_VULKAN
@@ -36,7 +36,7 @@ target_compile_definitions(vk_pbr_engine
 
 find_package(Vulkan REQUIRED)
 
-target_link_libraries(vk_pbr_engine
+target_link_libraries(${PROJECT_NAME}
         PRIVATE
         Vulkan::Vulkan
         glm

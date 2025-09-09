@@ -22,7 +22,7 @@ FetchContent_Declare(
 FetchContent_Declare(
         stb_image
         GIT_REPOSITORY https://github.com/nothings/stb
-        GIT_TAG        f58f558c120e9b32c217290b80bad1a0729fbb2c
+        GIT_TAG        fede005abaf93d9d7f3a679d1999b2db341b360f
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(
