@@ -5,16 +5,16 @@
 #ifndef SPECTRA_ERROR_H
 #define SPECTRA_ERROR_H
 
-#include <vulkan/vk_enum_string_helper.h>  // For string_VkResult
+#include <stdexcept>
+#include <string>
+#include <vulkan/vk_enum_string_helper.h>
 
-#define VK_CHECK(x)                                                            \
-    do                                                                         \
-    {                                                                          \
-        VkResult res = x;                                                      \
-        if (res)                                                               \
-        {                                                                      \
-            throw std::runtime_error("Vulkan error: " + string_VkResult(res)); \
-        }                                                                      \
-    } while (0)
+inline void checkVk(VkResult res)
+{
+    if (res != VK_SUCCESS)
+    {
+        throw std::runtime_error("Vulkan error: " + std::string(string_VkResult(res)));
+    }
+}
 
 #endif //SPECTRA_ERROR_H
