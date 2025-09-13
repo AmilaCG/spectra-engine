@@ -43,5 +43,11 @@ FetchContent_Declare(
         GIT_TAG        v1.4.320
         GIT_SHALLOW    TRUE
 )
+FetchContent_Declare(
+        volk
+        GIT_REPOSITORY https://github.com/zeux/volk
+        GIT_TAG        1.4.304
+        GIT_SHALLOW    TRUE
+)
 
-FetchContent_MakeAvailable(glm glfw vma imgui stb_image tinygltf vk_bootstrap)
+FetchContent_MakeAvailable(glm glfw vma imgui stb_image tinygltf vk_bootstrap volk)
