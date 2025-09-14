@@ -3,7 +3,8 @@ project(spectra)
 
 set(CMAKE_CXX_STANDARD 20)
 
-include(dependencies/CMakeLists.txt)
+include(cmake/Dependencies.cmake)
+include(cmake/third_party/CompilerGlslShader.cmake)
 
 include_directories(includes)
 
@@ -50,3 +51,22 @@ target_link_libraries(${PROJECT_NAME}
         vk-bootstrap::vk-bootstrap
         volk
 )
+
+# Compile shaders
+file(GLOB SHADER_H_FILES "shaders/*.h")
+file(GLOB SHADER_FILES "shaders/*.vert" "shaders/*.frag" "shaders/*.comp")
+
+message(STATUS "Compiling shaders: ${SHADER_FILES}")
+
+compile_glsl(
+        "${SHADER_FILES}"
+        "${CMAKE_BINARY_DIR}/generated_shaders"
+        GENERATED_SHADER_HEADERS
+)
+
+# Add shader files to the project
+source_group("Shaders" FILES ${SHADER_FILES} ${SHADER_H_FILES})
+source_group("Shaders/Compiled" FILES ${GENERATED_SHADER_HEADERS})
+
+# Add the output shader headers (target) directly to the executable
+target_sources(${PROJECT_NAME} PRIVATE ${GENERATED_SHADER_HEADERS} ${SHADER_H_FILES})
