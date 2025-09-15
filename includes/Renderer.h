@@ -5,14 +5,20 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <memory>
 #include <GLFW/glfw3.h>
+
+#include <Context.h>
 
 namespace spectra {
 class Renderer {
 public:
-    Renderer();
+    Renderer(std::shared_ptr<vk::Context> context);
 
-    void draw(GLFWwindow* window);
+    void draw();
+
+private:
+    std::shared_ptr<vk::Context> pCtx_;
 };
 } // spectra
 

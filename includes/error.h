@@ -9,6 +9,8 @@
 #include <string>
 #include <vulkan/vk_enum_string_helper.h>
 
+namespace spectra {
+
 inline void checkVk(VkResult res)
 {
     if (res != VK_SUCCESS)
@@ -16,5 +18,6 @@ inline void checkVk(VkResult res)
         throw std::runtime_error("Vulkan error: " + std::string(string_VkResult(res)));
     }
 }
+} // namespace spectra
 
 #endif //SPECTRA_ERROR_H

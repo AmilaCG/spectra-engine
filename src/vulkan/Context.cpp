@@ -6,12 +6,21 @@
 
 #include <format>
 #include <stdexcept>
+#include <iostream>
 
-#include "Utilities.h"
+#include "error.h"
 
 namespace spectra::vk {
+Context::~Context()
+{
+    if (instance != VK_NULL_HANDLE)
+    {
+        std::cerr << "spectra::vk::Context has not been de-initialized!\n";
+        std::abort();
+    }
+}
 
-Context::Context()
+void Context::init()
 {
     vkb::InstanceBuilder builder;
     auto instanceRet = builder.set_app_name("Spectra Engine")
@@ -69,14 +78,14 @@ Context::Context()
     swapchain = vkbSwapchain_.swapchain;
 }
 
-Context::~Context()
+void Context::deinit()
 {
     vkb::destroy_swapchain(vkbSwapchain_);
     vkb::destroy_device(vkbDevice_);
     vkb::destroy_surface(vkbInstance_, surface);
     vkb::destroy_instance(vkbInstance_);
+    instance = VK_NULL_HANDLE;
     glfwDestroyWindow(pWindow);
     glfwTerminate();
 }
-
 } // spectra::vk

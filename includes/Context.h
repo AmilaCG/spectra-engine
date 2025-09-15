@@ -12,10 +12,11 @@ namespace spectra::vk {
 
 class Context {
 public:
-    Context();
     ~Context();
 
-public:
+    void init();
+    void deinit();
+
     GLFWwindow* pWindow = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;

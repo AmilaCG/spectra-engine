@@ -15,6 +15,7 @@ namespace spectra {
 class Application {
 public:
     Application();
+    ~Application();
 
     void init();
     void run();
@@ -22,8 +23,7 @@ public:
 private:
     void initWindow();
 
-private:
-    vk::Context vkContext_{};
+    std::shared_ptr<vk::Context> pVkContext_;
     std::unique_ptr<Renderer> pRenderer_;
 };
 

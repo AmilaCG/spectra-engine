@@ -4,16 +4,18 @@
 
 #include "Renderer.h"
 
+#include <utility>
+
 namespace spectra {
-Renderer::Renderer()
+Renderer::Renderer(std::shared_ptr<vk::Context> context) : pCtx_(std::move(context))
 {
     // TODO: Init Vulkan stuff
 
 }
 
-void Renderer::draw(GLFWwindow* window)
+void Renderer::draw()
 {
-    while (!glfwWindowShouldClose(window))
+    while (!glfwWindowShouldClose(pCtx_->pWindow))
     {
         glfwPollEvents();
     }
