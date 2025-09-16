@@ -17,12 +17,9 @@ public:
     Application();
     ~Application();
 
-    void init();
     void run();
 
 private:
-    void initWindow();
-
     std::shared_ptr<vk::Context> pVkContext_;
     std::unique_ptr<Renderer> pRenderer_;
 };

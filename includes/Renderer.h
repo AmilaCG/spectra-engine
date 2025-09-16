@@ -8,7 +8,7 @@
 #include <memory>
 #include <GLFW/glfw3.h>
 
-#include <Context.h>
+#include "Context.h"
 
 namespace spectra {
 class Renderer {
