@@ -15,9 +15,11 @@ class Renderer {
 public:
     Renderer(std::shared_ptr<vk::Context> context);
 
-    void draw();
+    void start();
 
 private:
+    void render();
+
     std::shared_ptr<vk::Context> pCtx_;
 };
 } // spectra

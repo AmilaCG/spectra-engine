@@ -21,7 +21,7 @@ Application::~Application()
 
 void Application::run()
 {
-    pRenderer_->draw();
+    pRenderer_->start();
 }
 
 } // spectra

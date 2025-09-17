@@ -5,19 +5,24 @@
 #ifndef SPECTRA_ERROR_H
 #define SPECTRA_ERROR_H
 
-#include <stdexcept>
+#include <iostream>
 #include <string>
 #include <vulkan/vk_enum_string_helper.h>
 
 namespace spectra {
 
-inline void checkVk(VkResult res)
+inline void checkVk(VkResult res, const char* file, int line)
 {
     if (res != VK_SUCCESS)
     {
-        throw std::runtime_error("Vulkan error: " + std::string(string_VkResult(res)));
+        std::cerr << "Vulkan error: "
+                  << std::string(string_VkResult(res))
+                  << " at " << file << ": " << line
+                  << std::endl;
+        abort();
     }
 }
+#define CHECK_VK(x) checkVk((x), __FILE__, __LINE__)
 } // namespace spectra
 
 #endif //SPECTRA_ERROR_H

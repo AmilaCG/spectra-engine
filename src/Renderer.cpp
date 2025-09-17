@@ -5,19 +5,29 @@
 #include "Renderer.h"
 
 #include <utility>
+#include <volk.h>
+
+#include "error.h"
 
 namespace spectra {
 Renderer::Renderer(std::shared_ptr<vk::Context> context) : pCtx_(std::move(context))
 {
-    // TODO: Init Vulkan stuff
-
+    CHECK_VK(volkInitialize());
 }
 
-void Renderer::draw()
+void Renderer::start()
 {
+    // Main loop
     while (!glfwWindowShouldClose(pCtx_->pWindow))
     {
         glfwPollEvents();
+
+        render();
     }
+}
+
+void Renderer::render()
+{
+
 }
 } // spectra
