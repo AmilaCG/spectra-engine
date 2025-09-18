@@ -35,10 +35,6 @@ target_compile_definitions(${PROJECT_NAME}
         GLFW_INCLUDE_VULKAN
 )
 
-# Define VK_NO_PROTOTYPES to avoid including Vulkan prototypes
-# This is necessary because we are using volk to load Vulkan functions
-target_compile_definitions(volk PUBLIC VK_NO_PROTOTYPES)
-
 find_package(Vulkan REQUIRED)
 
 target_link_libraries(${PROJECT_NAME}
@@ -49,7 +45,6 @@ target_link_libraries(${PROJECT_NAME}
         VulkanMemoryAllocator
         tinygltf
         vk-bootstrap::vk-bootstrap
-        volk
 )
 
 # Compile shaders

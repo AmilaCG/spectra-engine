@@ -5,14 +5,12 @@
 #include "Renderer.h"
 
 #include <utility>
-#include <volk.h>
 
 #include "error.h"
 
 namespace spectra {
 Renderer::Renderer(std::shared_ptr<vk::Context> context) : pCtx_(std::move(context))
 {
-    CHECK_VK(volkInitialize());
 }
 
 void Renderer::start()
