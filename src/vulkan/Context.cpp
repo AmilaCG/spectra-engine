@@ -24,6 +24,7 @@ void Context::init()
 {
     vkb::InstanceBuilder builder;
     auto instanceRet = builder.set_app_name("Spectra Engine")
+                              .require_api_version(1, 4)
                               .request_validation_layers()
                               .use_default_debug_messenger()
                               .build();
@@ -46,14 +47,27 @@ void Context::init()
     }
 
     vkb::PhysicalDeviceSelector selector(vkbInstance_);
-    auto physicalDeviceRet = selector.set_surface(surface).select();
+    auto physicalDeviceRet = selector
+                             .set_surface(surface)
+                             .set_minimum_version(1, 4)
+                             .select();
     if (!physicalDeviceRet)
     {
         throw std::runtime_error(std::format("Failed to select physical device: {}\n", physicalDeviceRet.error().message()));
     }
+    const auto& vkbPhysicalDevice = physicalDeviceRet.value();
+    physicalDevice = vkbPhysicalDevice.physical_device;
 
-    vkb::DeviceBuilder deviceBuilder(physicalDeviceRet.value());
-    auto deviceRet = deviceBuilder.build();
+    VkPhysicalDeviceVulkan13Features vk13Features {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .synchronization2 = VK_TRUE,
+        .dynamicRendering = VK_TRUE,
+    };
+
+    vkb::DeviceBuilder deviceBuilder(vkbPhysicalDevice);
+    auto deviceRet = deviceBuilder
+                     .add_pNext(&vk13Features)
+                     .build();
     if (!deviceRet)
     {
         throw std::runtime_error(std::format("Failed to create physical device: {}\n", deviceRet.error().message()));
@@ -67,6 +81,15 @@ void Context::init()
         throw std::runtime_error(std::format("Failed to get graphics queue: {}\n", graphicsQueueRet.error().message()));
     }
     graphicsQueue = graphicsQueueRet.value();
+    graphicsQueueFamilyIdx = vkbDevice_.get_queue_index(vkb::QueueType::graphics).value();
+
+    auto presentQueueRet = vkbDevice_.get_queue(vkb::QueueType::present);
+    if (!presentQueueRet)
+    {
+        throw std::runtime_error(std::format("Failed to get present queue: {}\n", presentQueueRet.error().message()));
+    }
+    presentQueue = presentQueueRet.value();
+    presentQueueFamilyIdx = vkbDevice_.get_queue_index(vkb::QueueType::present).value();
 
     vkb::SwapchainBuilder swapchainBuilder(vkbDevice_);
     auto swapchainRet = swapchainBuilder.build();

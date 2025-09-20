@@ -9,14 +9,14 @@
 namespace spectra {
 Application::Application()
 {
-    pVkContext_ = std::make_shared<vk::Context>();
-    pVkContext_->init();
-    pRenderer_ = std::make_unique<Renderer>(pVkContext_);
+    pVkCtx_ = std::make_shared<vk::Context>();
+    pVkCtx_->init();
+    pRenderer_ = std::make_unique<Renderer>(pVkCtx_);
 }
 
 Application::~Application()
 {
-    pVkContext_->deinit();
+    pVkCtx_->deinit();
 }
 
 void Application::run()

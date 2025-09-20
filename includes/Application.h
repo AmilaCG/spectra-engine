@@ -20,7 +20,7 @@ public:
     void run();
 
 private:
-    std::shared_ptr<vk::Context> pVkContext_;
+    std::shared_ptr<vk::Context> pVkCtx_;
     std::unique_ptr<Renderer> pRenderer_;
 };
 

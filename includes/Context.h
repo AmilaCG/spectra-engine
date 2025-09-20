@@ -19,8 +19,15 @@ public:
 
     GLFWwindow* pWindow = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+
+    // TODO: Add queue and index into a struct
     VkQueue graphicsQueue = VK_NULL_HANDLE;
+    uint32_t graphicsQueueFamilyIdx = 0;
+    VkQueue presentQueue = VK_NULL_HANDLE;
+    uint32_t presentQueueFamilyIdx = 0;
+
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
