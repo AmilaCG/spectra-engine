@@ -11,10 +11,13 @@
 #include "triangle.vert.h"
 #include "triangle.frag.h"
 
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
 namespace spectra {
 Renderer::Renderer(std::shared_ptr<vk::Context> context) : pCtx_(std::move(context))
 {
     createGraphicsPipeline();
+    createCommandPool(commandPool_);
 }
 
 void Renderer::start()
@@ -40,6 +43,8 @@ void Renderer::shutdown()
     // TODO: Have a separate class for pipelines and handle lifecycles from there
     vkDestroyPipeline(pCtx_->device, graphicsPipeline_, nullptr);
     vkDestroyPipelineLayout(pCtx_->device, graphicsPipelineLayout_, nullptr);
+
+    vkDestroyCommandPool(pCtx_->device, commandPool_, nullptr);
 }
 
 void Renderer::createGraphicsPipeline()
@@ -169,5 +174,14 @@ void Renderer::createGraphicsPipeline()
 
     pShaderTriangleVert_->destroy();
     pShaderTriangleFrag_->destroy();
+}
+
+void Renderer::createCommandPool(VkCommandPool& commandPool)
+{
+    VkCommandPoolCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.queueFamilyIndex = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+    CHECK_VK(vkCreateCommandPool(pCtx_->device, &createInfo, VK_NULL_HANDLE, &commandPool))
 }
 } // spectra

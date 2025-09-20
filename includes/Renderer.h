@@ -21,6 +21,7 @@ private:
     void render();
     void shutdown();
     void createGraphicsPipeline();
+    void createCommandPool(VkCommandPool& commandPool);
 
     std::shared_ptr<vk::Context>        pCtx_;
 
@@ -29,6 +30,8 @@ private:
 
     VkPipelineLayout graphicsPipelineLayout_ = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline_ = VK_NULL_HANDLE;
+
+    VkCommandPool commandPool_ = VK_NULL_HANDLE;
 };
 } // spectra
 

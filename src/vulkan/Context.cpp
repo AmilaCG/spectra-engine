@@ -72,26 +72,24 @@ void Context::init()
     {
         throw std::runtime_error(std::format("Failed to create physical device: {}\n", deviceRet.error().message()));
     }
-    vkbDevice_ = deviceRet.value();
-    device = vkbDevice_.device;
+    vkbDevice = deviceRet.value();
+    device = vkbDevice.device;
 
-    auto graphicsQueueRet = vkbDevice_.get_queue(vkb::QueueType::graphics);
+    auto graphicsQueueRet = vkbDevice.get_queue(vkb::QueueType::graphics);
     if (!graphicsQueueRet)
     {
         throw std::runtime_error(std::format("Failed to get graphics queue: {}\n", graphicsQueueRet.error().message()));
     }
     graphicsQueue = graphicsQueueRet.value();
-    graphicsQueueFamilyIdx = vkbDevice_.get_queue_index(vkb::QueueType::graphics).value();
 
-    auto presentQueueRet = vkbDevice_.get_queue(vkb::QueueType::present);
+    auto presentQueueRet = vkbDevice.get_queue(vkb::QueueType::present);
     if (!presentQueueRet)
     {
         throw std::runtime_error(std::format("Failed to get present queue: {}\n", presentQueueRet.error().message()));
     }
     presentQueue = presentQueueRet.value();
-    presentQueueFamilyIdx = vkbDevice_.get_queue_index(vkb::QueueType::present).value();
 
-    vkb::SwapchainBuilder swapchainBuilder(vkbDevice_);
+    vkb::SwapchainBuilder swapchainBuilder(vkbDevice);
     auto swapchainRet = swapchainBuilder.build();
     if (!swapchainRet)
     {
@@ -104,7 +102,7 @@ void Context::init()
 void Context::deinit()
 {
     vkb::destroy_swapchain(vkbSwapchain);
-    vkb::destroy_device(vkbDevice_);
+    vkb::destroy_device(vkbDevice);
     vkb::destroy_surface(vkbInstance_, surface);
     vkb::destroy_instance(vkbInstance_);
     instance = VK_NULL_HANDLE;
