@@ -26,6 +26,9 @@ private:
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
+
+    VkPipelineLayout graphicsPipelineLayout_ = VK_NULL_HANDLE;
+    VkPipeline graphicsPipeline_ = VK_NULL_HANDLE;
 };
 } // spectra
 

@@ -1,6 +1,7 @@
 #include "Application.h"
 
-int main() {
+int main()
+{
     spectra::Application app;
     app.run();
 

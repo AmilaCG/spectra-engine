@@ -30,11 +30,11 @@ public:
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    vkb::Swapchain vkbSwapchain{};
 
 private:
     vkb::Instance vkbInstance_{};
     vkb::Device vkbDevice_{};
-    vkb::Swapchain vkbSwapchain_{};
 };
 
 } // spectra::vk

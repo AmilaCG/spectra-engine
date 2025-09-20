@@ -97,13 +97,13 @@ void Context::init()
     {
         throw std::runtime_error(std::format("Failed to create swapchain: {}\n", swapchainRet.error().message()));
     }
-    vkbSwapchain_ = swapchainRet.value();
-    swapchain = vkbSwapchain_.swapchain;
+    vkbSwapchain = swapchainRet.value();
+    swapchain = vkbSwapchain.swapchain;
 }
 
 void Context::deinit()
 {
-    vkb::destroy_swapchain(vkbSwapchain_);
+    vkb::destroy_swapchain(vkbSwapchain);
     vkb::destroy_device(vkbDevice_);
     vkb::destroy_surface(vkbInstance_, surface);
     vkb::destroy_instance(vkbInstance_);
