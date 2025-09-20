@@ -19,6 +19,7 @@ public:
 
 private:
     void render();
+    void createGraphicsPipeline();
 
     std::shared_ptr<vk::Context> pCtx_;
 };

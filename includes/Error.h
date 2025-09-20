@@ -22,7 +22,7 @@ inline void checkVk(VkResult res, const char* file, int line)
         abort();
     }
 }
-#define CHECK_VK(x) checkVk((x), __FILE__, __LINE__)
+#define CHECK_VK(x) checkVk((x), __FILE__, __LINE__);
 } // namespace spectra
 
 #endif //SPECTRA_ERROR_H

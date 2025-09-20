@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <iostream>
 
-#include "error.h"
+#include "Error.h"
 
 namespace spectra::vk {
 Context::~Context()
