@@ -63,5 +63,8 @@ compile_glsl(
 source_group("Shaders" FILES ${SHADER_FILES} ${SHADER_H_FILES})
 source_group("Shaders/Compiled" FILES ${GENERATED_SHADER_HEADERS})
 
+include_directories(${CMAKE_BINARY_DIR}/generated_shaders)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+
 # Add the output shader headers (target) directly to the executable
 target_sources(${PROJECT_NAME} PRIVATE ${GENERATED_SHADER_HEADERS} ${SHADER_H_FILES})
