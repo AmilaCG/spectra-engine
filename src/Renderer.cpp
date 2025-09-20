@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "Error.h"
-#include "ShaderModule.h"
 
 #include "triangle.vert.h"
 #include "triangle.frag.h"
@@ -27,6 +26,8 @@ void Renderer::start()
 
         render();
     }
+
+    shutdown();
 }
 
 void Renderer::render()
@@ -34,13 +35,19 @@ void Renderer::render()
 
 }
 
+void Renderer::shutdown()
+{
+    pShaderTriangleVert_->destroy();
+    pShaderTriangleFrag_->destroy();
+}
+
+
 void Renderer::createGraphicsPipeline()
 {
-    // TODO: Need a way to destroy on exit. Handle that in the ShaderModule class.
-    VkShaderModule triVert = vk::ShaderModule::createShaderModule(pCtx_->device, triangle_vert);
-    VkShaderModule triFrag = vk::ShaderModule::createShaderModule(pCtx_->device, triangle_frag);
+    pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_vert);
+    pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_frag);
 
-    if (triVert == VK_NULL_HANDLE || triFrag == VK_NULL_HANDLE)
+    if (pShaderTriangleVert_->value() == VK_NULL_HANDLE || pShaderTriangleFrag_->value() == VK_NULL_HANDLE)
     {
         std::cerr << "Failed to create shader modules\n";
     }

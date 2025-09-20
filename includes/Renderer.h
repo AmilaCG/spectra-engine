@@ -6,9 +6,9 @@
 #define RENDERER_H
 
 #include <memory>
-#include <GLFW/glfw3.h>
 
 #include "Context.h"
+#include "ShaderModule.h"
 
 namespace spectra {
 class Renderer {
@@ -19,9 +19,13 @@ public:
 
 private:
     void render();
+    void shutdown();
     void createGraphicsPipeline();
 
-    std::shared_ptr<vk::Context> pCtx_;
+    std::shared_ptr<vk::Context>        pCtx_;
+
+    std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
+    std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
 };
 } // spectra
 
