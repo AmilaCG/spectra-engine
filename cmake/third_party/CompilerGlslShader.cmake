@@ -4,8 +4,8 @@
 # See THIRD_PARTY_NOTICES.md for full license text.
 #
 # Modifications:
-# - Modified by Amila Abeygunasekara, 2025 Sep 14
-#   Use shader name without extension for the variable-name (--vn) argument
+# - Modified by Amila Abeygunasekara, 2025 Sep 20
+#   Replace "." instead of ".." with "_" for the variable-name (--vn) argument
 #   of glslangValidator.
 
 # This function compiles GLSL shaders into C++ headers using glslangValidator
@@ -58,8 +58,7 @@ function(compile_glsl SHADER_FILES OUTPUT_DIR SHADER_HEADERS_VAR)
   # Iterate over shader files
   foreach(SHADER ${SHADER_FILES})
     get_filename_component(SHADER_NAME ${SHADER} NAME)
-    get_filename_component(SHADER_NAME_WE ${SHADER} NAME_WE)
-    string(REPLACE ".." "_" VN_SHADER_NAME ${SHADER_NAME_WE})
+    string(REPLACE "." "_" VN_SHADER_NAME ${SHADER_NAME})
     set(OUTPUT_HEADER "${OUTPUT_DIR}/${SHADER_NAME}.h")
     set(OUTPUT_SPV "${OUTPUT_DIR}/${SHADER_NAME}.spv")
 
