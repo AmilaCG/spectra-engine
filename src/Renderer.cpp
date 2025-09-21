@@ -11,7 +11,7 @@
 #include "triangle.vert.h"
 #include "triangle.frag.h"
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 namespace spectra {
 Renderer::Renderer()
@@ -23,6 +23,7 @@ Renderer::Renderer()
     createCommandPool(commandPool_);
     createSwapchain();
     allocateCommandBuffers(pCtx_->device);
+    createSyncObjects(pCtx_->device);
 }
 
 void Renderer::start()
@@ -45,6 +46,18 @@ void Renderer::render()
 
 void Renderer::shutdown()
 {
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroySemaphore(pCtx_->device, availableSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroyFence(pCtx_->device, inFlightFences_[i], VK_NULL_HANDLE);
+    }
+
+    for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
+    {
+        vkDestroySemaphore(pCtx_->device, finishedSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroyFence(pCtx_->device, swapchainImgFences_[i], VK_NULL_HANDLE);
+    }
+
     // TODO: Have a separate class for pipelines and handle lifecycles from there
     vkDestroyPipeline(pCtx_->device, graphicsPipeline_, nullptr);
     vkDestroyPipelineLayout(pCtx_->device, graphicsPipelineLayout_, nullptr);
@@ -222,5 +235,31 @@ void Renderer::allocateCommandBuffers(VkDevice device)
     cbAllocInfo.commandBufferCount = commandBuffers_.size();
 
     CHECK_VK(vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffers_.data()))
+}
+
+void Renderer::createSyncObjects(VkDevice device)
+{
+    availableSemaphores_.resize(MAX_FRAMES_IN_FLIGHT);
+    finishedSemaphores_.resize(vkbSwapchain_.image_count);
+    inFlightFences_.resize(MAX_FRAMES_IN_FLIGHT);
+    swapchainImgFences_.resize(vkbSwapchain_.image_count);
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceCreateInfo = {};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
+    {
+        CHECK_VK(vkCreateSemaphore(device, &semaphoreCreateInfo, VK_NULL_HANDLE, &finishedSemaphores_[i]))
+    }
+
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        CHECK_VK(vkCreateSemaphore(device, &semaphoreCreateInfo, VK_NULL_HANDLE, &availableSemaphores_[i]))
+        CHECK_VK(vkCreateFence(device, &fenceCreateInfo, VK_NULL_HANDLE, &inFlightFences_[i]))
+    }
 }
 } // spectra

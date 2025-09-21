@@ -24,6 +24,7 @@ private:
     void createCommandPool(VkCommandPool& commandPool);
     void createSwapchain();
     void allocateCommandBuffers(VkDevice device);
+    void createSyncObjects(VkDevice device);
 
     std::unique_ptr<vk::Context>        pCtx_;
 
@@ -41,6 +42,11 @@ private:
     std::vector<VkImageView> swapchainImageViews_;
 
     std::vector<VkCommandBuffer> commandBuffers_;
+
+    std::vector<VkSemaphore> availableSemaphores_;
+    std::vector<VkSemaphore> finishedSemaphores_;
+    std::vector<VkFence> inFlightFences_; // Per frame
+    std::vector<VkFence> swapchainImgFences_; // Per swapchain image
 };
 } // spectra
 
