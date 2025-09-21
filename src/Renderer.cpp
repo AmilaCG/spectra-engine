@@ -22,6 +22,7 @@ Renderer::Renderer()
     createGraphicsPipeline();
     createCommandPool(commandPool_);
     createSwapchain();
+    allocateCommandBuffers(pCtx_->device);
 }
 
 void Renderer::start()
@@ -208,5 +209,18 @@ void Renderer::createSwapchain()
 
     swapchainImages_ = vkbSwapchain_.get_images().value();
     swapchainImageViews_ = vkbSwapchain_.get_image_views().value();
+}
+
+void Renderer::allocateCommandBuffers(VkDevice device)
+{
+    commandBuffers_.resize(swapchainImageViews_.size());
+
+    VkCommandBufferAllocateInfo cbAllocInfo = {};
+    cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    cbAllocInfo.commandPool = commandPool_;
+    cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cbAllocInfo.commandBufferCount = commandBuffers_.size();
+
+    CHECK_VK(vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffers_.data()))
 }
 } // spectra

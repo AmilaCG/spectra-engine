@@ -23,6 +23,7 @@ private:
     void createGraphicsPipeline();
     void createCommandPool(VkCommandPool& commandPool);
     void createSwapchain();
+    void allocateCommandBuffers(VkDevice device);
 
     std::unique_ptr<vk::Context>        pCtx_;
 
@@ -38,6 +39,8 @@ private:
     VkSwapchainKHR swapchain_ = VK_NULL_HANDLE;
     std::vector<VkImage> swapchainImages_;
     std::vector<VkImageView> swapchainImageViews_;
+
+    std::vector<VkCommandBuffer> commandBuffers_;
 };
 } // spectra
 
