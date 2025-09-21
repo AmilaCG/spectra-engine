@@ -19,11 +19,12 @@ Renderer::Renderer()
     pCtx_ = std::make_unique<vk::Context>();
     pCtx_->init();
 
-    createGraphicsPipeline();
     createCommandPool(commandPool_);
     createSwapchain();
+    createGraphicsPipeline();
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
+    recordCommandBuffers();
 }
 
 void Renderer::start()
@@ -35,6 +36,7 @@ void Renderer::start()
 
         render();
     }
+    vkDeviceWaitIdle(pCtx_->device);
 
     shutdown();
 }
@@ -42,6 +44,7 @@ void Renderer::start()
 void Renderer::render()
 {
 
+    currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void Renderer::shutdown()
@@ -66,6 +69,7 @@ void Renderer::shutdown()
 
     vkbSwapchain_.destroy_image_views(swapchainImageViews_);
     vkb::destroy_swapchain(vkbSwapchain_);
+
     pCtx_->deinit();
 }
 
@@ -103,24 +107,22 @@ void Renderer::createGraphicsPipeline()
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkViewport viewport = {};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)vkbSwapchain_.extent.width;
-    viewport.height = (float)vkbSwapchain_.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    viewport_.x = 0.0f;
+    viewport_.y = 0.0f;
+    viewport_.width = (float)vkbSwapchain_.extent.width;
+    viewport_.height = (float)vkbSwapchain_.extent.height;
+    viewport_.minDepth = 0.0f;
+    viewport_.maxDepth = 1.0f;
 
-    VkRect2D scissor = {};
-    scissor.offset = { 0, 0 };
-    scissor.extent = vkbSwapchain_.extent;
+    scissor_.offset = { 0, 0 };
+    scissor_.extent = vkbSwapchain_.extent;
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
+    viewportState.pViewports = &viewport_;
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
+    viewportState.pScissors = &scissor_;
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -260,6 +262,49 @@ void Renderer::createSyncObjects(VkDevice device)
     {
         CHECK_VK(vkCreateSemaphore(device, &semaphoreCreateInfo, VK_NULL_HANDLE, &availableSemaphores_[i]))
         CHECK_VK(vkCreateFence(device, &fenceCreateInfo, VK_NULL_HANDLE, &inFlightFences_[i]))
+    }
+}
+
+void Renderer::recordCommandBuffers()
+{
+    for (uint32_t i = 0; i < swapchainImageViews_.size(); i++)
+    {
+        VkCommandBuffer cb = commandBuffers_[i];
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo))
+
+        VkClearValue clearColor{ { { 0.0f, 0.0f, 0.0f, 1.0f } } };
+
+        VkRenderingAttachmentInfo renderingAttachmentInfo {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = swapchainImageViews_[i],
+            .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = clearColor,
+        };
+
+        VkRenderingInfo renderingInfo = {};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = scissor_;
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = &renderingAttachmentInfo;
+
+        vkCmdSetViewport(cb, 0, 1, &viewport_);
+        vkCmdSetScissor(cb, 0, 1, &scissor_);
+
+        vkCmdBeginRendering(cb, &renderingInfo);
+
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
+        vkCmdDraw(cb, 3, 1, 0, 0);
+
+        vkCmdEndRendering(cb);
+
+        CHECK_VK(vkEndCommandBuffer(cb))
     }
 }
 } // spectra

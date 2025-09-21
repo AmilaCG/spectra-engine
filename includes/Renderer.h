@@ -25,6 +25,7 @@ private:
     void createSwapchain();
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
+    void recordCommandBuffers();
 
     std::unique_ptr<vk::Context>        pCtx_;
 
@@ -33,6 +34,9 @@ private:
 
     VkPipelineLayout graphicsPipelineLayout_ = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline_ = VK_NULL_HANDLE;
+
+    VkViewport viewport_{};
+    VkRect2D scissor_{};
 
     VkCommandPool commandPool_ = VK_NULL_HANDLE;
 
@@ -47,6 +51,8 @@ private:
     std::vector<VkSemaphore> finishedSemaphores_;
     std::vector<VkFence> inFlightFences_; // Per frame
     std::vector<VkFence> swapchainImgFences_; // Per swapchain image
+
+    uint32_t currentFrame_ = 0;
 };
 } // spectra
 
