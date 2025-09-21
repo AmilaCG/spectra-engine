@@ -88,20 +88,10 @@ void Context::init()
         throw std::runtime_error(std::format("Failed to get present queue: {}\n", presentQueueRet.error().message()));
     }
     presentQueue = presentQueueRet.value();
-
-    vkb::SwapchainBuilder swapchainBuilder(vkbDevice);
-    auto swapchainRet = swapchainBuilder.build();
-    if (!swapchainRet)
-    {
-        throw std::runtime_error(std::format("Failed to create swapchain: {}\n", swapchainRet.error().message()));
-    }
-    vkbSwapchain = swapchainRet.value();
-    swapchain = vkbSwapchain.swapchain;
 }
 
 void Context::deinit()
 {
-    vkb::destroy_swapchain(vkbSwapchain);
     vkb::destroy_device(vkbDevice);
     vkb::destroy_surface(vkbInstance_, surface);
     vkb::destroy_instance(vkbInstance_);

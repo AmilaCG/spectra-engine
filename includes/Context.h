@@ -7,6 +7,7 @@
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
+#include <memory>
 
 namespace spectra::vk {
 
@@ -27,9 +28,7 @@ public:
     VkQueue presentQueue = VK_NULL_HANDLE;
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
-    vkb::Swapchain vkbSwapchain{};
     vkb::Device vkbDevice{};
 
 private:

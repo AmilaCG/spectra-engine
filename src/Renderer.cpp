@@ -14,10 +14,14 @@
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 namespace spectra {
-Renderer::Renderer(std::shared_ptr<vk::Context> context) : pCtx_(std::move(context))
+Renderer::Renderer()
 {
+    pCtx_ = std::make_unique<vk::Context>();
+    pCtx_->init();
+
     createGraphicsPipeline();
     createCommandPool(commandPool_);
+    createSwapchain();
 }
 
 void Renderer::start()
@@ -45,6 +49,10 @@ void Renderer::shutdown()
     vkDestroyPipelineLayout(pCtx_->device, graphicsPipelineLayout_, nullptr);
 
     vkDestroyCommandPool(pCtx_->device, commandPool_, nullptr);
+
+    vkbSwapchain_.destroy_image_views(swapchainImageViews_);
+    vkb::destroy_swapchain(vkbSwapchain_);
+    pCtx_->deinit();
 }
 
 void Renderer::createGraphicsPipeline()
@@ -84,14 +92,14 @@ void Renderer::createGraphicsPipeline()
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)pCtx_->vkbSwapchain.extent.width;
-    viewport.height = (float)pCtx_->vkbSwapchain.extent.height;
+    viewport.width = (float)vkbSwapchain_.extent.width;
+    viewport.height = (float)vkbSwapchain_.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = pCtx_->vkbSwapchain.extent;
+    scissor.extent = vkbSwapchain_.extent;
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -149,7 +157,7 @@ void Renderer::createGraphicsPipeline()
     VkPipelineRenderingCreateInfo pipelineRenderingInfo = {};
     pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     pipelineRenderingInfo.pNext = VK_NULL_HANDLE;
-    pipelineRenderingInfo.pColorAttachmentFormats = &pCtx_->vkbSwapchain.image_format;
+    pipelineRenderingInfo.pColorAttachmentFormats = &vkbSwapchain_.image_format;
     pipelineRenderingInfo.depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
     pipelineRenderingInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
 
@@ -183,5 +191,22 @@ void Renderer::createCommandPool(VkCommandPool& commandPool)
     createInfo.queueFamilyIndex = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
     CHECK_VK(vkCreateCommandPool(pCtx_->device, &createInfo, VK_NULL_HANDLE, &commandPool))
+}
+
+void Renderer::createSwapchain()
+{
+    vkb::SwapchainBuilder swapchainBuilder(pCtx_->vkbDevice);
+    auto builderRet = swapchainBuilder.set_old_swapchain(swapchain_).build();
+    if (!builderRet)
+    {
+        std::cerr << builderRet.error().message() << " " << builderRet.vk_result() << "\n";
+    }
+
+    vkb::destroy_swapchain(vkbSwapchain_);
+    vkbSwapchain_ = builderRet.value();
+    swapchain_ = vkbSwapchain_.swapchain;
+
+    swapchainImages_ = vkbSwapchain_.get_images().value();
+    swapchainImageViews_ = vkbSwapchain_.get_image_views().value();
 }
 } // spectra

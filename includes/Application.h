@@ -5,9 +5,7 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include <GLFW/glfw3.h>
 #include <memory>
-#include "Context.h"
 #include "Renderer.h"
 
 namespace spectra {
@@ -20,7 +18,6 @@ public:
     void run();
 
 private:
-    std::shared_ptr<vk::Context> pVkCtx_;
     std::unique_ptr<Renderer> pRenderer_;
 };
 

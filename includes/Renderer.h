@@ -13,7 +13,7 @@
 namespace spectra {
 class Renderer {
 public:
-    Renderer(std::shared_ptr<vk::Context> context);
+    Renderer();
 
     void start();
 
@@ -22,8 +22,9 @@ private:
     void shutdown();
     void createGraphicsPipeline();
     void createCommandPool(VkCommandPool& commandPool);
+    void createSwapchain();
 
-    std::shared_ptr<vk::Context>        pCtx_;
+    std::unique_ptr<vk::Context>        pCtx_;
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
@@ -32,6 +33,11 @@ private:
     VkPipeline graphicsPipeline_ = VK_NULL_HANDLE;
 
     VkCommandPool commandPool_ = VK_NULL_HANDLE;
+
+    vkb::Swapchain vkbSwapchain_{};
+    VkSwapchainKHR swapchain_ = VK_NULL_HANDLE;
+    std::vector<VkImage> swapchainImages_;
+    std::vector<VkImageView> swapchainImageViews_;
 };
 } // spectra
 
