@@ -43,6 +43,59 @@ void Renderer::start()
 
 void Renderer::render()
 {
+    vkWaitForFences(pCtx_->device, 1, &inFlightFences_[currentFrame_], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex = 0;
+    VkResult result = vkAcquireNextImageKHR(
+        pCtx_->device, swapchain_, UINT64_MAX, availableSemaphores_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        // TODO: Recreate swapchain
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        std::cerr << "Failed to acquire swapchain image!\n";
+        CHECK_VK(result)
+    }
+
+    if (swapchainImgFences_[imageIndex] != VK_NULL_HANDLE)
+    {
+        CHECK_VK(vkWaitForFences(pCtx_->device, 1, &swapchainImgFences_[imageIndex], VK_TRUE, UINT64_MAX))
+    }
+    swapchainImgFences_[imageIndex] = swapchainImgFences_[currentFrame_];
+
+    VkSubmitInfo submitInfo {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    };
+
+    VkSemaphore waitSemaphores[] = { availableSemaphores_[currentFrame_] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers_[imageIndex];
+
+    VkSemaphore signalSemaphores[] = { finishedSemaphores_[imageIndex] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    CHECK_VK(vkResetFences(pCtx_->device, 1, &inFlightFences_[currentFrame_]))
+
+    CHECK_VK(vkQueueSubmit(pCtx_->graphicsQueue, 1, &submitInfo, inFlightFences_[currentFrame_]))
+
+    VkPresentInfoKHR presentInfo {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = signalSemaphores,
+        .swapchainCount = 1,
+        .pSwapchains = &swapchain_,
+        .pImageIndices = &imageIndex,
+    };
+
+    CHECK_VK(vkQueuePresentKHR(pCtx_->presentQueue, &presentInfo))
 
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -297,6 +350,16 @@ void Renderer::recordCommandBuffers()
         vkCmdSetViewport(cb, 0, 1, &viewport_);
         vkCmdSetScissor(cb, 0, 1, &scissor_);
 
+        transitionImageLayout(cb,
+            swapchainImages_[i],
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_NONE,
+            VK_ACCESS_NONE,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
+        );
+
         vkCmdBeginRendering(cb, &renderingInfo);
 
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
@@ -304,7 +367,52 @@ void Renderer::recordCommandBuffers()
 
         vkCmdEndRendering(cb);
 
+        transitionImageLayout(cb,
+            swapchainImages_[i],
+            VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_NONE,
+            VK_ACCESS_NONE
+        );
+
         CHECK_VK(vkEndCommandBuffer(cb))
     }
+}
+
+void Renderer::transitionImageLayout(
+    VkCommandBuffer cb,
+    VkImage image,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout,
+    VkPipelineStageFlags2 srcStage,
+    VkAccessFlags2 srcAccess,
+    VkPipelineStageFlags2 dstStage,
+    VkAccessFlags2 dstAccess,
+    uint32_t srcQueueFamily,
+    uint32_t dstQueueFamily)
+{
+    VkImageMemoryBarrier2 imageBarrier {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .srcStageMask = srcStage,
+        .srcAccessMask = srcAccess,
+        .dstStageMask = dstStage,
+        .dstAccessMask = dstAccess,
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
+        .srcQueueFamilyIndex = srcQueueFamily,
+        .dstQueueFamilyIndex = dstQueueFamily,
+        .image = image,
+        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+    };
+
+    VkDependencyInfo dependencyInfo {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &imageBarrier
+    };
+
+    vkCmdPipelineBarrier2(cb, &dependencyInfo);
 }
 } // spectra

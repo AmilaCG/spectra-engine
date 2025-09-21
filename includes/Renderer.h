@@ -27,6 +27,18 @@ private:
     void createSyncObjects(VkDevice device);
     void recordCommandBuffers();
 
+    static void transitionImageLayout(
+        VkCommandBuffer cb,
+        VkImage image,
+        VkImageLayout oldLayout,
+        VkImageLayout newLayout,
+        VkPipelineStageFlags2 srcStage,
+        VkAccessFlags2 srcAccess,
+        VkPipelineStageFlags2 dstStage,
+        VkAccessFlags2 dstAccess,
+        uint32_t srcQueueFamily = VK_QUEUE_FAMILY_IGNORED,
+        uint32_t dstQueueFamily = VK_QUEUE_FAMILY_IGNORED);
+
     std::unique_ptr<vk::Context>        pCtx_;
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
