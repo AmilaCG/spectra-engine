@@ -26,6 +26,7 @@ private:
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
     void recordCommandBuffers();
+    void setupImGui();
 
     static void transitionImageLayout(
         VkCommandBuffer cb,
@@ -63,6 +64,8 @@ private:
     std::vector<VkSemaphore> finishedSemaphores_;
     std::vector<VkFence> inFlightFences_; // Per frame
     std::vector<VkFence> swapchainImgFences_; // Per swapchain image
+
+    VkDescriptorPool imguiDescriptorPool_ = VK_NULL_HANDLE;
 
     uint32_t currentFrame_ = 0;
 };

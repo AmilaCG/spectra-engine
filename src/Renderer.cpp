@@ -4,7 +4,10 @@
 
 #include "Renderer.h"
 
-#include <utility>
+#include <array>
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 
 #include "Error.h"
 
@@ -25,6 +28,10 @@ Renderer::Renderer()
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
     recordCommandBuffers();
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    setupImGui();
 }
 
 void Renderer::start()
@@ -102,6 +109,11 @@ void Renderer::render()
 
 void Renderer::shutdown()
 {
+    vkDestroyDescriptorPool(pCtx_->device, imguiDescriptorPool_, nullptr);
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vkDestroySemaphore(pCtx_->device, availableSemaphores_[i], VK_NULL_HANDLE);
@@ -379,6 +391,54 @@ void Renderer::recordCommandBuffers()
 
         CHECK_VK(vkEndCommandBuffer(cb))
     }
+}
+
+void Renderer::setupImGui()
+{
+    constexpr uint32_t texturePoolSize = 128U;
+    static VkFormat imageFormats = VK_FORMAT_B8G8R8A8_UNORM;  // Must be static for ImGui_ImplVulkan_InitInfo
+
+    const std::array<VkDescriptorPoolSize, 1> poolSizes {
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturePoolSize}
+    };
+
+    const VkDescriptorPoolCreateInfo poolInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = texturePoolSize,
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data()
+    };
+
+    CHECK_VK(vkCreateDescriptorPool(pCtx_->device, &poolInfo, nullptr, &imguiDescriptorPool_))
+
+    constexpr ImGuiConfigFlags configFlags { ImGuiConfigFlags_NavEnableKeyboard };
+    ImGuiIO& io    = ImGui::GetIO();
+    io.ConfigFlags = configFlags;
+
+    ImGui_ImplGlfw_InitForVulkan(pCtx_->pWindow, true);
+    imageFormats = vkbSwapchain_.image_format;
+
+    ImGui_ImplVulkan_InitInfo initInfo = {
+        .ApiVersion                  = VK_API_VERSION_1_4,
+        .Instance                    = pCtx_->instance,
+        .PhysicalDevice              = pCtx_->physicalDevice,
+        .Device                      = pCtx_->device,
+        .QueueFamily                 = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(),
+        .Queue                       = pCtx_->vkbDevice.get_queue(vkb::QueueType::graphics).value(),
+        .DescriptorPool              = imguiDescriptorPool_,
+        .MinImageCount               = MAX_FRAMES_IN_FLIGHT,
+        .ImageCount                  = std::max(vkbSwapchain_.image_count, MAX_FRAMES_IN_FLIGHT),
+        .UseDynamicRendering         = true,
+        .PipelineRenderingCreateInfo =
+        {
+            .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount    = 1,
+            .pColorAttachmentFormats = &imageFormats,
+        },
+    };
+
+    ImGui_ImplVulkan_Init(&initInfo);
 }
 
 void Renderer::transitionImageLayout(
