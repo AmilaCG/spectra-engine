@@ -28,3 +28,5 @@ CMakeUserPresets.json
 
 # CMake
 cmake-build-*/
+
+imgui.ini
