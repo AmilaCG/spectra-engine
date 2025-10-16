@@ -14,7 +14,7 @@
 #include "triangle.vert.h"
 #include "triangle.frag.h"
 
-constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
 
 namespace spectra {
 Renderer::Renderer()
@@ -22,12 +22,13 @@ Renderer::Renderer()
     pCtx_ = std::make_unique<vk::Context>();
     pCtx_->init();
 
-    createCommandPool(commandPool_);
+    frames_.resize(MAX_FRAMES_IN_FLIGHT);
+
+    createTemporaryCommandPool(pCtx_->device, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
     createSwapchain();
     createGraphicsPipeline();
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
-    recordCommandBuffers();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -41,7 +42,14 @@ void Renderer::start()
     {
         glfwPollEvents();
 
+        // Build ImGui frame and UI
+        ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplVulkan_NewFrame();
+        ImGui::NewFrame();
+
         render();
+
+        ImGui::EndFrame();
     }
     vkDeviceWaitIdle(pCtx_->device);
 
@@ -70,7 +78,18 @@ void Renderer::render()
     {
         CHECK_VK(vkWaitForFences(pCtx_->device, 1, &swapchainImgFences_[imageIndex], VK_TRUE, UINT64_MAX))
     }
-    swapchainImgFences_[imageIndex] = swapchainImgFences_[currentFrame_];
+    swapchainImgFences_[imageIndex] = inFlightFences_[currentFrame_];
+
+    CHECK_VK(vkResetFences(pCtx_->device, 1, &inFlightFences_[currentFrame_]))
+
+    ImGui::Begin("Stats");
+    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::End();
+
+    ImGui::Render();
+
+    // Record commands for this image (includes triangle + ImGui)
+    recordCommandBuffer(imageIndex);
 
     VkSubmitInfo submitInfo {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -83,13 +102,11 @@ void Renderer::render()
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffers_[imageIndex];
+    submitInfo.pCommandBuffers = &frames_[imageIndex].cmdBuffer;
 
     VkSemaphore signalSemaphores[] = { finishedSemaphores_[imageIndex] };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
-
-    CHECK_VK(vkResetFences(pCtx_->device, 1, &inFlightFences_[currentFrame_]))
 
     CHECK_VK(vkQueueSubmit(pCtx_->graphicsQueue, 1, &submitInfo, inFlightFences_[currentFrame_]))
 
@@ -109,10 +126,11 @@ void Renderer::render()
 
 void Renderer::shutdown()
 {
-    vkDestroyDescriptorPool(pCtx_->device, imguiDescriptorPool_, nullptr);
+    // Shutdown ImGui before destroying the descriptor pool it uses
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+    vkDestroyDescriptorPool(pCtx_->device, imguiDescriptorPool_, nullptr);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -123,14 +141,18 @@ void Renderer::shutdown()
     for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
     {
         vkDestroySemaphore(pCtx_->device, finishedSemaphores_[i], VK_NULL_HANDLE);
-        vkDestroyFence(pCtx_->device, swapchainImgFences_[i], VK_NULL_HANDLE);
+        // swapchainImgFences_ aliases inFlightFences_ and is not owned; no need to destroy it here
     }
 
     // TODO: Have a separate class for pipelines and handle lifecycles from there
     vkDestroyPipeline(pCtx_->device, graphicsPipeline_, nullptr);
     vkDestroyPipelineLayout(pCtx_->device, graphicsPipelineLayout_, nullptr);
 
-    vkDestroyCommandPool(pCtx_->device, commandPool_, nullptr);
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroyCommandPool(pCtx_->device, frames_[i].cmdPool, nullptr);
+    }
+    vkDestroyCommandPool(pCtx_->device, temporaryCmdPool_, nullptr);
 
     vkbSwapchain_.destroy_image_views(swapchainImageViews_);
     vkb::destroy_swapchain(vkbSwapchain_);
@@ -269,9 +291,20 @@ void Renderer::createCommandPool(VkCommandPool& commandPool)
 {
     VkCommandPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
     CHECK_VK(vkCreateCommandPool(pCtx_->device, &createInfo, VK_NULL_HANDLE, &commandPool))
+}
+
+void Renderer::createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool)
+{
+    const VkCommandPoolCreateInfo commandPoolCreateInfo{
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,  // Commands will be short-lived
+        .queueFamilyIndex = queueIndex
+    };
+    CHECK_VK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &cmdPool));
 }
 
 void Renderer::createSwapchain()
@@ -289,19 +322,41 @@ void Renderer::createSwapchain()
 
     swapchainImages_ = vkbSwapchain_.get_images().value();
     swapchainImageViews_ = vkbSwapchain_.get_image_views().value();
+
+    VkCommandBuffer cmd{};
+    startOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_);
+
+    // Set initial swapchain image layouts to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    for (int i = 0; i < vkbSwapchain_.image_count; i++)
+    {
+        transitionImageLayout(cmd,
+            swapchainImages_[i],
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_NONE,
+            VK_ACCESS_NONE
+        );
+    }
+
+    endOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_, pCtx_->graphicsQueue);
 }
 
 void Renderer::allocateCommandBuffers(VkDevice device)
 {
-    commandBuffers_.resize(swapchainImageViews_.size());
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        createCommandPool(frames_[i].cmdPool);
 
-    VkCommandBufferAllocateInfo cbAllocInfo = {};
-    cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    cbAllocInfo.commandPool = commandPool_;
-    cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cbAllocInfo.commandBufferCount = commandBuffers_.size();
+        VkCommandBufferAllocateInfo cbAllocInfo = {};
+        cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbAllocInfo.commandPool = frames_[i].cmdPool;
+        cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cbAllocInfo.commandBufferCount = 1;
 
-    CHECK_VK(vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffers_.data()))
+        CHECK_VK(vkAllocateCommandBuffers(device, &cbAllocInfo, &frames_[i].cmdBuffer))
+    }
 }
 
 void Renderer::createSyncObjects(VkDevice device)
@@ -309,7 +364,7 @@ void Renderer::createSyncObjects(VkDevice device)
     availableSemaphores_.resize(MAX_FRAMES_IN_FLIGHT);
     finishedSemaphores_.resize(vkbSwapchain_.image_count);
     inFlightFences_.resize(MAX_FRAMES_IN_FLIGHT);
-    swapchainImgFences_.resize(vkbSwapchain_.image_count);
+    swapchainImgFences_.assign(vkbSwapchain_.image_count, VK_NULL_HANDLE);
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -330,67 +385,108 @@ void Renderer::createSyncObjects(VkDevice device)
     }
 }
 
-void Renderer::recordCommandBuffers()
+void Renderer::recordCommandBuffer(uint32_t i)
 {
-    for (uint32_t i = 0; i < swapchainImageViews_.size(); i++)
-    {
-        VkCommandBuffer cb = commandBuffers_[i];
+    VkCommandBuffer cb = frames_[i].cmdBuffer;
 
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    CHECK_VK(vkResetCommandBuffer(cb, 0))
 
-        CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo))
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
 
-        VkClearValue clearColor{ { { 0.0f, 0.0f, 0.0f, 1.0f } } };
+    CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo))
 
-        VkRenderingAttachmentInfo renderingAttachmentInfo {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = swapchainImageViews_[i],
-            .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue = clearColor,
-        };
+    VkClearValue clearColor{ { { 0.0f, 0.0f, 0.0f, 1.0f } } };
 
-        VkRenderingInfo renderingInfo = {};
-        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-        renderingInfo.renderArea = scissor_;
-        renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = &renderingAttachmentInfo;
+    VkRenderingAttachmentInfo renderingAttachmentInfo {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchainImageViews_[i],
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
 
-        vkCmdSetViewport(cb, 0, 1, &viewport_);
-        vkCmdSetScissor(cb, 0, 1, &scissor_);
+    VkRenderingInfo renderingInfo = {};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    renderingInfo.renderArea = scissor_;
+    renderingInfo.layerCount = 1;
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &renderingAttachmentInfo;
 
-        transitionImageLayout(cb,
-            swapchainImages_[i],
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_NONE,
-            VK_ACCESS_NONE,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
-        );
+    vkCmdSetViewport(cb, 0, 1, &viewport_);
+    vkCmdSetScissor(cb, 0, 1, &scissor_);
 
-        vkCmdBeginRendering(cb, &renderingInfo);
+    transitionImageLayout(cb,
+        swapchainImages_[i],
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_NONE,
+        VK_ACCESS_NONE,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
+    );
 
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
-        vkCmdDraw(cb, 3, 1, 0, 0);
+    vkCmdBeginRendering(cb, &renderingInfo);
 
-        vkCmdEndRendering(cb);
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
+    vkCmdDraw(cb, 3, 1, 0, 0);
 
-        transitionImageLayout(cb,
-            swapchainImages_[i],
-            VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_NONE,
-            VK_ACCESS_NONE
-        );
+    // Render ImGui draw data within the same rendering scope
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb, VK_NULL_HANDLE);
 
-        CHECK_VK(vkEndCommandBuffer(cb))
-    }
+    vkCmdEndRendering(cb);
+
+    transitionImageLayout(cb,
+        swapchainImages_[i],
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+        VK_PIPELINE_STAGE_2_NONE,
+        VK_ACCESS_NONE
+    );
+
+    CHECK_VK(vkEndCommandBuffer(cb))
+}
+
+void Renderer::startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool)
+{
+    const VkCommandBufferAllocateInfo allocInfo{.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                                                .commandPool        = cmdPool,
+                                                .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                                .commandBufferCount = 1};
+    CHECK_VK(vkAllocateCommandBuffers(device, &allocInfo, &cb));
+    const VkCommandBufferBeginInfo beginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                                             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+    CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo));
+
+}
+
+void Renderer::endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue)
+{
+    CHECK_VK(vkEndCommandBuffer(cb));
+
+    const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    std::array<VkFence, 1>  fence{};
+    CHECK_VK(vkCreateFence(device, &fenceInfo, nullptr, fence.data()));
+
+    const VkCommandBufferSubmitInfo cmdBufferInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .commandBuffer = cb
+    };
+
+    const std::array<VkSubmitInfo2, 1> submitInfo{
+              {{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2, .commandBufferInfoCount = 1, .pCommandBufferInfos = &cmdBufferInfo}},
+    };
+    CHECK_VK(vkQueueSubmit2(queue, submitInfo.size(), submitInfo.data(), fence[0]));
+    CHECK_VK(vkWaitForFences(device, fence.size(), fence.data(), VK_TRUE, UINT64_MAX));
+
+    // Cleanup
+    vkDestroyFence(device, fence[0], nullptr);
+    vkFreeCommandBuffers(device, cmdPool, 1, &cb);
 }
 
 void Renderer::setupImGui()

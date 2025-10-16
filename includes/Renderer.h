@@ -25,8 +25,12 @@ private:
     void createSwapchain();
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
-    void recordCommandBuffers();
+    void recordCommandBuffer(uint32_t imageIndex);
     void setupImGui();
+
+    static void createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool);
+    static void startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool);
+    static void endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue);
 
     static void transitionImageLayout(
         VkCommandBuffer cb,
@@ -51,14 +55,10 @@ private:
     VkViewport viewport_{};
     VkRect2D scissor_{};
 
-    VkCommandPool commandPool_ = VK_NULL_HANDLE;
-
     vkb::Swapchain vkbSwapchain_{};
     VkSwapchainKHR swapchain_ = VK_NULL_HANDLE;
     std::vector<VkImage> swapchainImages_;
     std::vector<VkImageView> swapchainImageViews_;
-
-    std::vector<VkCommandBuffer> commandBuffers_;
 
     std::vector<VkSemaphore> availableSemaphores_;
     std::vector<VkSemaphore> finishedSemaphores_;
@@ -67,7 +67,16 @@ private:
 
     VkDescriptorPool imguiDescriptorPool_ = VK_NULL_HANDLE;
 
+    VkCommandPool temporaryCmdPool_ = VK_NULL_HANDLE;
+
     uint32_t currentFrame_ = 0;
+
+    struct FrameData
+    {
+        VkCommandPool cmdPool = VK_NULL_HANDLE;
+        VkCommandBuffer cmdBuffer = VK_NULL_HANDLE;
+    };
+    std::vector<FrameData> frames_{};
 };
 } // spectra
 
