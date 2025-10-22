@@ -91,29 +91,39 @@ void Renderer::render()
     // Record commands for this image (includes triangle + ImGui)
     recordCommandBuffer(imageIndex);
 
-    VkSubmitInfo submitInfo {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    VkSemaphoreSubmitInfo waitSemaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+        .semaphore = availableSemaphores_[currentFrame_],
+        .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     };
 
-    VkSemaphore waitSemaphores[] = { availableSemaphores_[currentFrame_] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
+    VkSemaphoreSubmitInfo signalSemaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+        .semaphore = finishedSemaphores_[imageIndex],
+        .stageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    };
 
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &frames_[imageIndex].cmdBuffer;
+    VkCommandBufferSubmitInfo cmdSubmitInfo {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .commandBuffer = frames_[imageIndex].cmdBuffer,
+    };
 
-    VkSemaphore signalSemaphores[] = { finishedSemaphores_[imageIndex] };
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
+    VkSubmitInfo2 submitInfo {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+        .waitSemaphoreInfoCount = 1,
+        .pWaitSemaphoreInfos = &waitSemaphoreInfo,
+        .commandBufferInfoCount = 1,
+        .pCommandBufferInfos = &cmdSubmitInfo,
+        .signalSemaphoreInfoCount = 1,
+        .pSignalSemaphoreInfos = &signalSemaphoreInfo,
+    };
 
-    CHECK_VK(vkQueueSubmit(pCtx_->graphicsQueue, 1, &submitInfo, inFlightFences_[currentFrame_]))
+    CHECK_VK(vkQueueSubmit2(pCtx_->graphicsQueue, 1, &submitInfo, inFlightFences_[currentFrame_]))
 
     VkPresentInfoKHR presentInfo {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = signalSemaphores,
+        .pWaitSemaphores = &finishedSemaphores_[imageIndex],
         .swapchainCount = 1,
         .pSwapchains = &swapchain_,
         .pImageIndices = &imageIndex,
