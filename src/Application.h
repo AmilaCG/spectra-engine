@@ -21,10 +21,6 @@ private:
     void createSwapchain();
     void setupImGui();
 
-    static void createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool);
-    static void startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool);
-    static void endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue);
-
     VkCommandPool temporaryCmdPool_ = VK_NULL_HANDLE;
     VkDescriptorPool imguiDescriptorPool_ = VK_NULL_HANDLE;
 

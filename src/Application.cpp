@@ -18,7 +18,7 @@ Application::Application()
     pCtx_ = std::make_shared<vk::Context>();
     pCtx_->init();
 
-    createTemporaryCommandPool(
+    utils::vk::createTemporaryCommandPool(
         pCtx_->device, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
 
     createSwapchain();
@@ -82,7 +82,7 @@ void Application::createSwapchain()
     swapchainImageViews_ = vkbSwapchain_.get_image_views().value();
 
     VkCommandBuffer cmd{};
-    startOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_);
+    utils::vk::beginOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_);
 
     // Set initial swapchain image layouts to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     for (int i = 0; i < vkbSwapchain_.image_count; i++)
@@ -98,7 +98,7 @@ void Application::createSwapchain()
         );
     }
 
-    endOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_, pCtx_->graphicsQueue);
+    utils::vk::endOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_, pCtx_->graphicsQueue);
 }
 
 void Application::setupImGui()
@@ -149,58 +149,4 @@ void Application::setupImGui()
     ImGui_ImplVulkan_Init(&initInfo);
 }
 
-void Application::createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool)
-{
-    const VkCommandPoolCreateInfo commandPoolCreateInfo{
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,  // Commands will be short-lived
-        .queueFamilyIndex = queueIndex
-    };
-    CHECK_VK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &cmdPool));
-}
-
-void Application::startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool)
-{
-    const VkCommandBufferAllocateInfo allocInfo{
-        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool        = cmdPool,
-        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
-    };
-    CHECK_VK(vkAllocateCommandBuffers(device, &allocInfo, &cb));
-
-    const VkCommandBufferBeginInfo beginInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    };
-    CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo));
-
-}
-
-void Application::endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue)
-{
-    CHECK_VK(vkEndCommandBuffer(cb));
-
-    const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    std::array<VkFence, 1>  fence{};
-    CHECK_VK(vkCreateFence(device, &fenceInfo, nullptr, fence.data()));
-
-    const VkCommandBufferSubmitInfo cmdBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-        .commandBuffer = cb
-    };
-
-    const std::array<VkSubmitInfo2, 1> submitInfo{
-        {{
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .commandBufferInfoCount = 1,
-            .pCommandBufferInfos = &cmdBufferInfo}},
-        };
-    CHECK_VK(vkQueueSubmit2(queue, submitInfo.size(), submitInfo.data(), fence[0]));
-    CHECK_VK(vkWaitForFences(device, fence.size(), fence.data(), VK_TRUE, UINT64_MAX));
-
-    // Cleanup
-    vkDestroyFence(device, fence[0], nullptr);
-    vkFreeCommandBuffers(device, cmdPool, 1, &cb);
-}
 } // spectra
