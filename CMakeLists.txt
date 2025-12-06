@@ -6,8 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 include(cmake/Dependencies.cmake)
 include(cmake/third_party/CompilerGlslShader.cmake)
 
-include_directories(includes)
-
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/Application.cpp

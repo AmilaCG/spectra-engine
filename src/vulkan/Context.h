@@ -7,7 +7,6 @@
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
-#include <memory>
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
 

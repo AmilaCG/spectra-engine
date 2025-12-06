@@ -7,8 +7,8 @@
 
 #include <memory>
 
-#include "Context.h"
-#include "ShaderModule.h"
+#include "vulkan/Context.h"
+#include "vulkan/ShaderModule.h"
 
 namespace spectra {
 class Renderer {
