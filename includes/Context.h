@@ -9,8 +9,9 @@
 #include <VkBootstrap.h>
 #include <memory>
 
-namespace spectra::vk {
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
 
+namespace spectra::vk {
 class Context {
 public:
     ~Context();

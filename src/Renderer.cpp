@@ -5,55 +5,26 @@
 #include "Renderer.h"
 
 #include <array>
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
+#include <utility>
 #include <backends/imgui_impl_vulkan.h>
 
 #include "Error.h"
+#include "Utilities.h"
 
 #include "triangle.vert.h"
 #include "triangle.frag.h"
 
-constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
-
 namespace spectra {
-Renderer::Renderer()
+Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews)
+    : pCtx_(std::move(pCtx)), vkbSwapchain_(swapchain), swapchainImageViews_(std::move(swapchainImgViews))
 {
-    pCtx_ = std::make_unique<vk::Context>();
-    pCtx_->init();
-
     frames_.resize(MAX_FRAMES_IN_FLIGHT);
 
-    createTemporaryCommandPool(pCtx_->device, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
-    createSwapchain();
+    swapchainImages_ = swapchain.get_images().value();
+
     createGraphicsPipeline();
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    setupImGui();
-}
-
-void Renderer::start()
-{
-    // Main loop
-    while (!glfwWindowShouldClose(pCtx_->pWindow))
-    {
-        glfwPollEvents();
-
-        // Build ImGui frame and UI
-        ImGui_ImplGlfw_NewFrame();
-        ImGui_ImplVulkan_NewFrame();
-        ImGui::NewFrame();
-
-        render();
-
-        ImGui::EndFrame();
-    }
-    vkDeviceWaitIdle(pCtx_->device);
-
-    shutdown();
 }
 
 void Renderer::render()
@@ -62,7 +33,7 @@ void Renderer::render()
 
     uint32_t imageIndex = 0;
     VkResult result = vkAcquireNextImageKHR(
-        pCtx_->device, swapchain_, UINT64_MAX, availableSemaphores_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
+        pCtx_->device, vkbSwapchain_.swapchain, UINT64_MAX, availableSemaphores_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -125,7 +96,7 @@ void Renderer::render()
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &finishedSemaphores_[imageIndex],
         .swapchainCount = 1,
-        .pSwapchains = &swapchain_,
+        .pSwapchains = &vkbSwapchain_.swapchain,
         .pImageIndices = &imageIndex,
     };
 
@@ -136,12 +107,6 @@ void Renderer::render()
 
 void Renderer::shutdown()
 {
-    // Shutdown ImGui before destroying the descriptor pool it uses
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    vkDestroyDescriptorPool(pCtx_->device, imguiDescriptorPool_, nullptr);
-
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vkDestroySemaphore(pCtx_->device, availableSemaphores_[i], VK_NULL_HANDLE);
@@ -162,12 +127,6 @@ void Renderer::shutdown()
     {
         vkDestroyCommandPool(pCtx_->device, frames_[i].cmdPool, nullptr);
     }
-    vkDestroyCommandPool(pCtx_->device, temporaryCmdPool_, nullptr);
-
-    vkbSwapchain_.destroy_image_views(swapchainImageViews_);
-    vkb::destroy_swapchain(vkbSwapchain_);
-
-    pCtx_->deinit();
 }
 
 void Renderer::createGraphicsPipeline()
@@ -307,52 +266,6 @@ void Renderer::createCommandPool(VkCommandPool& commandPool)
     CHECK_VK(vkCreateCommandPool(pCtx_->device, &createInfo, VK_NULL_HANDLE, &commandPool))
 }
 
-void Renderer::createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool)
-{
-    const VkCommandPoolCreateInfo commandPoolCreateInfo{
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,  // Commands will be short-lived
-        .queueFamilyIndex = queueIndex
-    };
-    CHECK_VK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &cmdPool));
-}
-
-void Renderer::createSwapchain()
-{
-    vkb::SwapchainBuilder swapchainBuilder(pCtx_->vkbDevice);
-    auto builderRet = swapchainBuilder.set_old_swapchain(swapchain_).build();
-    if (!builderRet)
-    {
-        std::cerr << builderRet.error().message() << " " << builderRet.vk_result() << "\n";
-    }
-
-    vkb::destroy_swapchain(vkbSwapchain_);
-    vkbSwapchain_ = builderRet.value();
-    swapchain_ = vkbSwapchain_.swapchain;
-
-    swapchainImages_ = vkbSwapchain_.get_images().value();
-    swapchainImageViews_ = vkbSwapchain_.get_image_views().value();
-
-    VkCommandBuffer cmd{};
-    startOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_);
-
-    // Set initial swapchain image layouts to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    for (int i = 0; i < vkbSwapchain_.image_count; i++)
-    {
-        transitionImageLayout(cmd,
-            swapchainImages_[i],
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_NONE,
-            VK_ACCESS_NONE
-        );
-    }
-
-    endOneTimeCommands(cmd, pCtx_->device, temporaryCmdPool_, pCtx_->graphicsQueue);
-}
-
 void Renderer::allocateCommandBuffers(VkDevice device)
 {
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -429,14 +342,14 @@ void Renderer::recordCommandBuffer(uint32_t i)
     vkCmdSetViewport(cb, 0, 1, &viewport_);
     vkCmdSetScissor(cb, 0, 1, &scissor_);
 
-    transitionImageLayout(cb,
-        swapchainImages_[i],
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_PIPELINE_STAGE_2_NONE,
-        VK_ACCESS_NONE,
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
+    utils::vk::transitionImageLayout(cb,
+                                     swapchainImages_[i],
+                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                     VK_PIPELINE_STAGE_2_NONE,
+                                     VK_ACCESS_NONE,
+                                     VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                     VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
     );
 
     vkCmdBeginRendering(cb, &renderingInfo);
@@ -449,136 +362,17 @@ void Renderer::recordCommandBuffer(uint32_t i)
 
     vkCmdEndRendering(cb);
 
-    transitionImageLayout(cb,
-        swapchainImages_[i],
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-        VK_PIPELINE_STAGE_2_NONE,
-        VK_ACCESS_NONE
+    utils::vk::transitionImageLayout(cb,
+                                     swapchainImages_[i],
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                     VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                     VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                     VK_PIPELINE_STAGE_2_NONE,
+                                     VK_ACCESS_NONE
     );
 
     CHECK_VK(vkEndCommandBuffer(cb))
 }
 
-void Renderer::startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool)
-{
-    const VkCommandBufferAllocateInfo allocInfo{.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                                                .commandPool        = cmdPool,
-                                                .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                                                .commandBufferCount = 1};
-    CHECK_VK(vkAllocateCommandBuffers(device, &allocInfo, &cb));
-    const VkCommandBufferBeginInfo beginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                                             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
-    CHECK_VK(vkBeginCommandBuffer(cb, &beginInfo));
-
-}
-
-void Renderer::endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue)
-{
-    CHECK_VK(vkEndCommandBuffer(cb));
-
-    const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    std::array<VkFence, 1>  fence{};
-    CHECK_VK(vkCreateFence(device, &fenceInfo, nullptr, fence.data()));
-
-    const VkCommandBufferSubmitInfo cmdBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-        .commandBuffer = cb
-    };
-
-    const std::array<VkSubmitInfo2, 1> submitInfo{
-              {{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2, .commandBufferInfoCount = 1, .pCommandBufferInfos = &cmdBufferInfo}},
-    };
-    CHECK_VK(vkQueueSubmit2(queue, submitInfo.size(), submitInfo.data(), fence[0]));
-    CHECK_VK(vkWaitForFences(device, fence.size(), fence.data(), VK_TRUE, UINT64_MAX));
-
-    // Cleanup
-    vkDestroyFence(device, fence[0], nullptr);
-    vkFreeCommandBuffers(device, cmdPool, 1, &cb);
-}
-
-void Renderer::setupImGui()
-{
-    constexpr uint32_t texturePoolSize = 128U;
-    static VkFormat imageFormats = VK_FORMAT_B8G8R8A8_UNORM;  // Must be static for ImGui_ImplVulkan_InitInfo
-
-    const std::array<VkDescriptorPoolSize, 1> poolSizes {
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturePoolSize}
-    };
-
-    const VkDescriptorPoolCreateInfo poolInfo {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets = texturePoolSize,
-        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
-        .pPoolSizes = poolSizes.data()
-    };
-
-    CHECK_VK(vkCreateDescriptorPool(pCtx_->device, &poolInfo, nullptr, &imguiDescriptorPool_))
-
-    constexpr ImGuiConfigFlags configFlags { ImGuiConfigFlags_NavEnableKeyboard };
-    ImGuiIO& io    = ImGui::GetIO();
-    io.ConfigFlags = configFlags;
-
-    ImGui_ImplGlfw_InitForVulkan(pCtx_->pWindow, true);
-    imageFormats = vkbSwapchain_.image_format;
-
-    ImGui_ImplVulkan_InitInfo initInfo = {
-        .ApiVersion                  = VK_API_VERSION_1_4,
-        .Instance                    = pCtx_->instance,
-        .PhysicalDevice              = pCtx_->physicalDevice,
-        .Device                      = pCtx_->device,
-        .QueueFamily                 = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(),
-        .Queue                       = pCtx_->vkbDevice.get_queue(vkb::QueueType::graphics).value(),
-        .DescriptorPool              = imguiDescriptorPool_,
-        .MinImageCount               = MAX_FRAMES_IN_FLIGHT,
-        .ImageCount                  = std::max(vkbSwapchain_.image_count, MAX_FRAMES_IN_FLIGHT),
-        .UseDynamicRendering         = true,
-        .PipelineRenderingCreateInfo =
-        {
-            .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount    = 1,
-            .pColorAttachmentFormats = &imageFormats,
-        },
-    };
-
-    ImGui_ImplVulkan_Init(&initInfo);
-}
-
-void Renderer::transitionImageLayout(
-    VkCommandBuffer cb,
-    VkImage image,
-    VkImageLayout oldLayout,
-    VkImageLayout newLayout,
-    VkPipelineStageFlags2 srcStage,
-    VkAccessFlags2 srcAccess,
-    VkPipelineStageFlags2 dstStage,
-    VkAccessFlags2 dstAccess,
-    uint32_t srcQueueFamily,
-    uint32_t dstQueueFamily)
-{
-    VkImageMemoryBarrier2 imageBarrier {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-        .srcStageMask = srcStage,
-        .srcAccessMask = srcAccess,
-        .dstStageMask = dstStage,
-        .dstAccessMask = dstAccess,
-        .oldLayout = oldLayout,
-        .newLayout = newLayout,
-        .srcQueueFamilyIndex = srcQueueFamily,
-        .dstQueueFamilyIndex = dstQueueFamily,
-        .image = image,
-        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-    };
-
-    VkDependencyInfo dependencyInfo {
-        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &imageBarrier
-    };
-
-    vkCmdPipelineBarrier2(cb, &dependencyInfo);
-}
 } // spectra

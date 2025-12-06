@@ -13,38 +13,19 @@
 namespace spectra {
 class Renderer {
 public:
-    Renderer();
+    Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews);
 
-    void start();
-
-private:
     void render();
     void shutdown();
+
+private:
     void createGraphicsPipeline();
     void createCommandPool(VkCommandPool& commandPool);
-    void createSwapchain();
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
     void recordCommandBuffer(uint32_t imageIndex);
-    void setupImGui();
 
-    static void createTemporaryCommandPool(VkDevice device, uint32_t queueIndex, VkCommandPool& cmdPool);
-    static void startOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool);
-    static void endOneTimeCommands(VkCommandBuffer& cb, VkDevice device, VkCommandPool cmdPool, VkQueue queue);
-
-    static void transitionImageLayout(
-        VkCommandBuffer cb,
-        VkImage image,
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout,
-        VkPipelineStageFlags2 srcStage,
-        VkAccessFlags2 srcAccess,
-        VkPipelineStageFlags2 dstStage,
-        VkAccessFlags2 dstAccess,
-        uint32_t srcQueueFamily = VK_QUEUE_FAMILY_IGNORED,
-        uint32_t dstQueueFamily = VK_QUEUE_FAMILY_IGNORED);
-
-    std::unique_ptr<vk::Context>        pCtx_;
+    std::shared_ptr<vk::Context>        pCtx_;
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
@@ -56,7 +37,6 @@ private:
     VkRect2D scissor_{};
 
     vkb::Swapchain vkbSwapchain_{};
-    VkSwapchainKHR swapchain_ = VK_NULL_HANDLE;
     std::vector<VkImage> swapchainImages_;
     std::vector<VkImageView> swapchainImageViews_;
 
@@ -66,8 +46,6 @@ private:
     std::vector<VkFence> swapchainImgFences_; // Per swapchain image
 
     VkDescriptorPool imguiDescriptorPool_ = VK_NULL_HANDLE;
-
-    VkCommandPool temporaryCmdPool_ = VK_NULL_HANDLE;
 
     uint32_t currentFrame_ = 0;
 
