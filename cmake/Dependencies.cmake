@@ -20,12 +20,6 @@ FetchContent_Declare(
         GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(
-        stb_image
-        GIT_REPOSITORY https://github.com/nothings/stb
-        GIT_TAG        fede005abaf93d9d7f3a679d1999b2db341b360f
-        GIT_SHALLOW    TRUE
-)
-FetchContent_Declare(
         tinygltf
         GIT_REPOSITORY https://github.com/syoyo/tinygltf
         GIT_TAG        v2.8.3
@@ -44,4 +38,4 @@ FetchContent_Declare(
         GIT_SHALLOW    TRUE
 )
 
-FetchContent_MakeAvailable(glm glfw vma imgui stb_image tinygltf vk_bootstrap)
+FetchContent_MakeAvailable(glm glfw vma imgui tinygltf vk_bootstrap)
