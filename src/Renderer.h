@@ -6,6 +6,7 @@
 #define RENDERER_H
 
 #include <memory>
+#include <tiny_gltf.h>
 
 #include "vulkan/Context.h"
 #include "vulkan/ShaderModule.h"
@@ -15,6 +16,7 @@ class Renderer {
 public:
     Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews);
 
+    void loadScene(const std::string& scenePath);
     void render();
     void shutdown();
 
@@ -55,6 +57,8 @@ private:
         VkCommandBuffer cmdBuffer = VK_NULL_HANDLE;
     };
     std::vector<FrameData> frames_{};
+
+    tinygltf::Model model_;
 };
 } // spectra
 

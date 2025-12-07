@@ -4,9 +4,12 @@
 
 #include "Renderer.h"
 
-#include <array>
 #include <utility>
 #include <backends/imgui_impl_vulkan.h>
+
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "vulkan/Error.h"
 #include "Utilities.h"
@@ -25,6 +28,31 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
     createGraphicsPipeline();
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
+}
+
+void Renderer::loadScene(const std::string& scenePath)
+{
+    tinygltf::TinyGLTF loader;
+    std::string err;
+    std::string warn;
+
+    // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, modelPath);
+    const bool ret = loader.LoadBinaryFromFile(&model_, &err, &warn, scenePath);
+
+    if (!warn.empty())
+    {
+        printf("Warn: %s\n", warn.c_str());
+    }
+
+    if (!err.empty())
+    {
+        printf("Err: %s\n", err.c_str());
+    }
+
+    if (!ret)
+    {
+        printf("Failed to parse glTF: %s\n", scenePath.c_str());
+    }
 }
 
 void Renderer::render()
