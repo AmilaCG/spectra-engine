@@ -25,7 +25,7 @@ private:
     void createCommandPool(VkCommandPool& commandPool);
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
-    void recordCommandBuffer(uint32_t imageIndex);
+    void recordCommandBuffer(VkCommandBuffer cb, uint32_t imgIndex) const;
 
     std::shared_ptr<vk::Context>        pCtx_;
 

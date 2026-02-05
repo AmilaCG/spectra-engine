@@ -88,7 +88,7 @@ void Renderer::render()
     ImGui::Render();
 
     // Record commands for this image (includes triangle + ImGui)
-    recordCommandBuffer(imageIndex);
+    recordCommandBuffer(frames_[imageIndex].cmdBuffer, imageIndex);
 
     VkSemaphoreSubmitInfo waitSemaphoreInfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -336,10 +336,8 @@ void Renderer::createSyncObjects(VkDevice device)
     }
 }
 
-void Renderer::recordCommandBuffer(uint32_t i)
+void Renderer::recordCommandBuffer(VkCommandBuffer cb, const uint32_t imgIndex) const
 {
-    VkCommandBuffer cb = frames_[i].cmdBuffer;
-
     CHECK_VK(vkResetCommandBuffer(cb, 0))
 
     VkCommandBufferBeginInfo beginInfo = {
@@ -353,7 +351,7 @@ void Renderer::recordCommandBuffer(uint32_t i)
 
     VkRenderingAttachmentInfo renderingAttachmentInfo {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchainImageViews_[i],
+        .imageView = swapchainImageViews_[imgIndex],
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -371,7 +369,7 @@ void Renderer::recordCommandBuffer(uint32_t i)
     vkCmdSetScissor(cb, 0, 1, &scissor_);
 
     utils::vk::transitionImageLayout(cb,
-                                     swapchainImages_[i],
+                                     swapchainImages_[imgIndex],
                                      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                      VK_PIPELINE_STAGE_2_NONE,
@@ -391,7 +389,7 @@ void Renderer::recordCommandBuffer(uint32_t i)
     vkCmdEndRendering(cb);
 
     utils::vk::transitionImageLayout(cb,
-                                     swapchainImages_[i],
+                                     swapchainImages_[imgIndex],
                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
