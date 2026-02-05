@@ -257,6 +257,7 @@ void Renderer::createGraphicsPipeline()
     VkPipelineRenderingCreateInfo pipelineRenderingInfo = {};
     pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     pipelineRenderingInfo.pNext = VK_NULL_HANDLE;
+    pipelineRenderingInfo.colorAttachmentCount = 1;
     pipelineRenderingInfo.pColorAttachmentFormats = &vkbSwapchain_.image_format;
     pipelineRenderingInfo.depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
     pipelineRenderingInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
