@@ -31,6 +31,7 @@ private:
     Slang::ComPtr<slang::ISession> setupSlangSession(const Slang::ComPtr<slang::IGlobalSession>& globalSession) const;
 
     std::shared_ptr<vk::Context>        pCtx_;
+    VkDevice                            device_ = VK_NULL_HANDLE;
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;

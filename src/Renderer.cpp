@@ -19,7 +19,7 @@
 
 namespace spectra {
 Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews)
-    : pCtx_(std::move(pCtx)), vkbSwapchain_(swapchain), swapchainImageViews_(std::move(swapchainImgViews))
+    : pCtx_(pCtx), device_(pCtx->device), vkbSwapchain_(swapchain), swapchainImageViews_(std::move(swapchainImgViews))
 {
     frames_.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -29,8 +29,8 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
     slang::createGlobalSession(slangGlobalSession_.writeRef());
 
     createGraphicsPipeline();
-    allocateCommandBuffers(pCtx_->device);
-    createSyncObjects(pCtx_->device);
+    allocateCommandBuffers(device_);
+    createSyncObjects(device_);
 }
 
 void Renderer::loadScene(const std::string& scenePath)
@@ -60,11 +60,11 @@ void Renderer::loadScene(const std::string& scenePath)
 
 void Renderer::render()
 {
-    vkWaitForFences(pCtx_->device, 1, &inFlightFences_[currentFrame_], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(device_, 1, &inFlightFences_[currentFrame_], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex = 0;
     VkResult result = vkAcquireNextImageKHR(
-        pCtx_->device, vkbSwapchain_.swapchain, UINT64_MAX, availableSemaphores_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
+        device_, vkbSwapchain_.swapchain, UINT64_MAX, availableSemaphores_[currentFrame_], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -78,11 +78,11 @@ void Renderer::render()
 
     if (swapchainImgFences_[imageIndex] != VK_NULL_HANDLE)
     {
-        CHECK_VK(vkWaitForFences(pCtx_->device, 1, &swapchainImgFences_[imageIndex], VK_TRUE, UINT64_MAX))
+        CHECK_VK(vkWaitForFences(device_, 1, &swapchainImgFences_[imageIndex], VK_TRUE, UINT64_MAX))
     }
     swapchainImgFences_[imageIndex] = inFlightFences_[currentFrame_];
 
-    CHECK_VK(vkResetFences(pCtx_->device, 1, &inFlightFences_[currentFrame_]))
+    CHECK_VK(vkResetFences(device_, 1, &inFlightFences_[currentFrame_]))
 
     ImGui::Begin("Stats");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -140,30 +140,30 @@ void Renderer::shutdown()
 {
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroySemaphore(pCtx_->device, availableSemaphores_[i], VK_NULL_HANDLE);
-        vkDestroyFence(pCtx_->device, inFlightFences_[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(device_, availableSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroyFence(device_, inFlightFences_[i], VK_NULL_HANDLE);
     }
 
     for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
     {
-        vkDestroySemaphore(pCtx_->device, finishedSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(device_, finishedSemaphores_[i], VK_NULL_HANDLE);
         // swapchainImgFences_ aliases inFlightFences_ and is not owned; no need to destroy it here
     }
 
     // TODO: Have a separate class for pipelines and handle lifecycles from there
-    vkDestroyPipeline(pCtx_->device, graphicsPipeline_, nullptr);
-    vkDestroyPipelineLayout(pCtx_->device, graphicsPipelineLayout_, nullptr);
+    vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
+    vkDestroyPipelineLayout(device_, graphicsPipelineLayout_, nullptr);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroyCommandPool(pCtx_->device, frames_[i].cmdPool, nullptr);
+        vkDestroyCommandPool(device_, frames_[i].cmdPool, nullptr);
     }
 }
 
 void Renderer::createGraphicsPipeline()
 {
-    // pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_vert);
-    // pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_frag);
+    // pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(device_, triangle_vert);
+    // pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(device_, triangle_frag);
     //
     // if (pShaderTriangleVert_->value() == VK_NULL_HANDLE || pShaderTriangleFrag_->value() == VK_NULL_HANDLE)
     // {
@@ -183,7 +183,7 @@ void Renderer::createGraphicsPipeline()
     };
 
     VkShaderModule shaderModule;
-    CHECK_VK(vkCreateShaderModule(pCtx_->device, &shaderModuleInfo, nullptr, &shaderModule));
+    CHECK_VK(vkCreateShaderModule(device_, &shaderModuleInfo, nullptr, &shaderModule));
 
     VkPipelineShaderStageCreateInfo vertStageInfo = {};
     vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -263,7 +263,7 @@ void Renderer::createGraphicsPipeline()
     layoutCreateInfo.pushConstantRangeCount = 0;
 
     // TODO: Name vulkan objects to identify them in validation messages
-    CHECK_VK(vkCreatePipelineLayout(pCtx_->device, &layoutCreateInfo, nullptr, &graphicsPipelineLayout_))
+    CHECK_VK(vkCreatePipelineLayout(device_, &layoutCreateInfo, nullptr, &graphicsPipelineLayout_))
 
     std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
@@ -297,11 +297,11 @@ void Renderer::createGraphicsPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.pNext = &pipelineRenderingInfo;
 
-    CHECK_VK(vkCreateGraphicsPipelines(pCtx_->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_))
+    CHECK_VK(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_))
 
     // pShaderTriangleVert_->destroy();
     // pShaderTriangleFrag_->destroy();
-    vkDestroyShaderModule(pCtx_->device, shaderModule, nullptr);
+    vkDestroyShaderModule(device_, shaderModule, nullptr);
 }
 
 void Renderer::createCommandPool(VkCommandPool& commandPool)
@@ -311,7 +311,7 @@ void Renderer::createCommandPool(VkCommandPool& commandPool)
     createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
-    CHECK_VK(vkCreateCommandPool(pCtx_->device, &createInfo, VK_NULL_HANDLE, &commandPool))
+    CHECK_VK(vkCreateCommandPool(device_, &createInfo, VK_NULL_HANDLE, &commandPool))
 }
 
 void Renderer::allocateCommandBuffers(VkDevice device)
