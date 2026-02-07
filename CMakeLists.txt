@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 include(cmake/Dependencies.cmake)
 include(cmake/third_party/CompilerGlslShader.cmake)
 
+find_library(Slang_LIBRARY NAMES slang slang-compiler HINTS "$ENV{VULKAN_SDK}/lib" REQUIRED)
+
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/Application.cpp
@@ -42,6 +44,7 @@ target_link_libraries(${PROJECT_NAME}
         VulkanMemoryAllocator
         tinygltf
         vk-bootstrap::vk-bootstrap
+        ${Slang_LIBRARY}
 )
 
 # Compile shaders

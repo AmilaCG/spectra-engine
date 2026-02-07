@@ -58,6 +58,12 @@ void Context::init()
     const auto& vkbPhysicalDevice = physicalDeviceRet.value();
     physicalDevice = vkbPhysicalDevice.physical_device;
 
+    // TODO: Slang compiler generates something that requires this extension, investigate why
+    VkPhysicalDeviceVulkan11Features vk11Features {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+        .shaderDrawParameters = VK_TRUE,
+    };
+
     VkPhysicalDeviceVulkan13Features vk13Features {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .synchronization2 = VK_TRUE,
@@ -67,6 +73,7 @@ void Context::init()
     vkb::DeviceBuilder deviceBuilder(vkbPhysicalDevice);
     auto deviceRet = deviceBuilder
                      .add_pNext(&vk13Features)
+                     .add_pNext(&vk11Features)
                      .build();
     if (!deviceRet)
     {

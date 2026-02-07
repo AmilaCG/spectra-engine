@@ -25,6 +25,9 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
 
     swapchainImages_ = swapchain.get_images().value();
 
+    // Connect with the Slang API
+    slang::createGlobalSession(slangGlobalSession_.writeRef());
+
     createGraphicsPipeline();
     allocateCommandBuffers(pCtx_->device);
     createSyncObjects(pCtx_->device);
@@ -159,25 +162,40 @@ void Renderer::shutdown()
 
 void Renderer::createGraphicsPipeline()
 {
-    pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_vert);
-    pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_frag);
+    // pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_vert);
+    // pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(pCtx_->device, triangle_frag);
+    //
+    // if (pShaderTriangleVert_->value() == VK_NULL_HANDLE || pShaderTriangleFrag_->value() == VK_NULL_HANDLE)
+    // {
+    //     std::cerr << "Failed to create shader modules\n";
+    // }
 
-    if (pShaderTriangleVert_->value() == VK_NULL_HANDLE || pShaderTriangleFrag_->value() == VK_NULL_HANDLE)
-    {
-        std::cerr << "Failed to create shader modules\n";
-    }
+    Slang::ComPtr<slang::ISession> slangSession = setupSlangSession(slangGlobalSession_);
+    Slang::ComPtr<slang::IModule> slangModule = nullptr;
+    slangModule = slangSession->loadModuleFromSource("triangle", "shaders/triangle.slang", nullptr, nullptr);
+    Slang::ComPtr<ISlangBlob> spirv;
+    slangModule->getTargetCode(0, spirv.writeRef());
+
+    VkShaderModuleCreateInfo shaderModuleInfo {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = spirv->getBufferSize(),
+        .pCode = static_cast<const uint32_t*>(spirv->getBufferPointer()),
+    };
+
+    VkShaderModule shaderModule;
+    CHECK_VK(vkCreateShaderModule(pCtx_->device, &shaderModuleInfo, nullptr, &shaderModule));
 
     VkPipelineShaderStageCreateInfo vertStageInfo = {};
     vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertStageInfo.module = pShaderTriangleVert_->value();
-    vertStageInfo.pName = "main";
+    vertStageInfo.module = shaderModule,
+    vertStageInfo.pName = "vertexMain";
 
     VkPipelineShaderStageCreateInfo fragStageInfo = {};
     fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragStageInfo.module = pShaderTriangleFrag_->value();
-    fragStageInfo.pName = "main";
+    fragStageInfo.module = shaderModule,
+    fragStageInfo.pName = "fragmentMain";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
 
@@ -281,8 +299,9 @@ void Renderer::createGraphicsPipeline()
 
     CHECK_VK(vkCreateGraphicsPipelines(pCtx_->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_))
 
-    pShaderTriangleVert_->destroy();
-    pShaderTriangleFrag_->destroy();
+    // pShaderTriangleVert_->destroy();
+    // pShaderTriangleFrag_->destroy();
+    vkDestroyShaderModule(pCtx_->device, shaderModule, nullptr);
 }
 
 void Renderer::createCommandPool(VkCommandPool& commandPool)
@@ -402,4 +421,31 @@ void Renderer::recordCommandBuffer(VkCommandBuffer cb, const uint32_t imgIndex) 
     CHECK_VK(vkEndCommandBuffer(cb))
 }
 
+Slang::ComPtr<slang::ISession> Renderer::setupSlangSession(const Slang::ComPtr<slang::IGlobalSession>& globalSession) const
+{
+    slang::TargetDesc target_desc {
+        .format = SLANG_SPIRV,
+        .profile = globalSession->findProfile("spirv_1_4")
+    };
+
+    std::array<slang::CompilerOptionEntry, 1> options = {
+        {
+            slang::CompilerOptionName::EmitSpirvDirectly,
+            {slang::CompilerOptionValueKind::Int, 1, 0, nullptr, nullptr}
+        }
+    };
+
+    slang::SessionDesc sessionDesc {
+        .targets = &target_desc,
+        .targetCount = 1,
+        .defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR,
+        .compilerOptionEntries = options.data(),
+        .compilerOptionEntryCount = static_cast<uint32_t>(options.size()),
+    };
+
+    Slang::ComPtr<slang::ISession> session;
+    globalSession->createSession(sessionDesc, session.writeRef());
+
+    return session;
+}
 } // spectra

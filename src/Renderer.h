@@ -7,6 +7,8 @@
 
 #include <memory>
 #include <tiny_gltf.h>
+#include <slang/slang-com-ptr.h>
+#include <slang/slang.h>
 
 #include "vulkan/Context.h"
 #include "vulkan/ShaderModule.h"
@@ -26,11 +28,14 @@ private:
     void allocateCommandBuffers(VkDevice device);
     void createSyncObjects(VkDevice device);
     void recordCommandBuffer(VkCommandBuffer cb, uint32_t imgIndex) const;
+    Slang::ComPtr<slang::ISession> setupSlangSession(const Slang::ComPtr<slang::IGlobalSession>& globalSession) const;
 
     std::shared_ptr<vk::Context>        pCtx_;
 
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
     std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
+
+    Slang::ComPtr<slang::IGlobalSession> slangGlobalSession_{};
 
     VkPipelineLayout graphicsPipelineLayout_ = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline_ = VK_NULL_HANDLE;
