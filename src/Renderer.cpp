@@ -14,9 +14,6 @@
 #include "vulkan/Error.h"
 #include "Utilities.h"
 
-#include "triangle.vert.h"
-#include "triangle.frag.h"
-
 namespace spectra {
 Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews)
     : pCtx_(pCtx), device_(pCtx->device), vkbSwapchain_(swapchain), swapchainImageViews_(std::move(swapchainImgViews))
@@ -162,14 +159,6 @@ void Renderer::shutdown()
 
 void Renderer::createGraphicsPipeline()
 {
-    // pShaderTriangleVert_ = std::make_unique<vk::ShaderModule>(device_, triangle_vert);
-    // pShaderTriangleFrag_ = std::make_unique<vk::ShaderModule>(device_, triangle_frag);
-    //
-    // if (pShaderTriangleVert_->value() == VK_NULL_HANDLE || pShaderTriangleFrag_->value() == VK_NULL_HANDLE)
-    // {
-    //     std::cerr << "Failed to create shader modules\n";
-    // }
-
     Slang::ComPtr<slang::ISession> slangSession = setupSlangSession(slangGlobalSession_);
     Slang::ComPtr<slang::IModule> slangModule = nullptr;
     slangModule = slangSession->loadModuleFromSource("triangle", "shaders/triangle.slang", nullptr, nullptr);
@@ -299,8 +288,6 @@ void Renderer::createGraphicsPipeline()
 
     CHECK_VK(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_))
 
-    // pShaderTriangleVert_->destroy();
-    // pShaderTriangleFrag_->destroy();
     vkDestroyShaderModule(device_, shaderModule, nullptr);
 }
 
