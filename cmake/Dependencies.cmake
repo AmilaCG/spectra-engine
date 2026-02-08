@@ -38,4 +38,11 @@ FetchContent_Declare(
         GIT_SHALLOW    TRUE
 )
 
-FetchContent_MakeAvailable(glm glfw vma imgui tinygltf vk_bootstrap)
+FetchContent_Declare(
+        slang
+        GIT_REPOSITORY https://github.com/shader-slang/slang.git
+        GIT_TAG        v2026.1.2
+        GIT_SHALLOW    TRUE
+)
+
+FetchContent_MakeAvailable(glm glfw vma imgui tinygltf vk_bootstrap slang)
