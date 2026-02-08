@@ -1,3 +1,8 @@
+struct VIn
+{
+    [[vk::location(0)]] float2 pos : POSITION;
+}
+
 struct VOut
 {
     float3 fragColor : LOCATION0;
@@ -5,15 +10,8 @@ struct VOut
 };
 
 [shader("vertex")]
-VOut vertexMain(uint vertexIndex : SV_VertexID)
+VOut vertexMain(VIn input, uint vertexIndex : SV_VertexID)
 {
-    float2 positions[3] =
-    {
-        float2( 0.0, -0.5),
-        float2( 0.5,  0.5),
-        float2(-0.5,  0.5)
-    };
-
     float3 colors[3] =
     {
         float3(1.0, 0.0, 0.0),
@@ -22,8 +20,8 @@ VOut vertexMain(uint vertexIndex : SV_VertexID)
     };
 
     VOut o;
-    o.position  = float4(positions[vertexIndex], 0.0, 1.0);
-    o.fragColor = colors[vertexIndex];
+    o.position  = float4(input.pos, 0.0, 1.0);
+    o.fragColor = colors[vertexIndex % 3];
     return o;
 }
 

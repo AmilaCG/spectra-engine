@@ -11,7 +11,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
-#include "vulkan/Error.h"
+#include "vk/Error.h"
 #include "Utilities.h"
 
 namespace spectra {
@@ -25,6 +25,11 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
     // Connect with the Slang API
     slang::createGlobalSession(slangGlobalSession_.writeRef());
 
+    utils::vk::createTemporaryCommandPool(
+        device_, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
+
+    initVma();
+    createBuffers();
     createGraphicsPipeline();
     allocateCommandBuffers(device_);
     createSyncObjects(device_);
@@ -135,6 +140,13 @@ void Renderer::render()
 
 void Renderer::shutdown()
 {
+    vmaDestroyBuffer(allocator_, stagingBuffer_, stagingAlloc_);
+    vmaDestroyBuffer(allocator_, vertBuffer_, vertAlloc_);
+
+    vmaDestroyAllocator(allocator_);
+
+    vkDestroyCommandPool(device_, temporaryCmdPool_, nullptr);
+
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vkDestroySemaphore(device_, availableSemaphores_[i], VK_NULL_HANDLE);
@@ -155,6 +167,82 @@ void Renderer::shutdown()
     {
         vkDestroyCommandPool(device_, frames_[i].cmdPool, nullptr);
     }
+}
+
+void Renderer::initVma()
+{
+    VmaVulkanFunctions vkFunctions
+    {
+        .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr = vkGetDeviceProcAddr,
+        .vkCreateImage = vkCreateImage
+    };
+
+    VmaAllocatorCreateInfo allocatorCreateInfo
+    {
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        .physicalDevice = pCtx_->physicalDevice,
+        .device = device_,
+        .pVulkanFunctions = &vkFunctions,
+        .instance = pCtx_->instance,
+    };
+
+    CHECK_VK(vmaCreateAllocator(&allocatorCreateInfo, &allocator_));
+}
+
+void Renderer::createBuffers()
+{
+    constexpr float positions[6] = {
+        0.0f, -0.5f, 0.5f, 0.5, -0.5f, 0.5f
+    };
+
+    VkDeviceSize vertBufSize = std::size(positions) * sizeof(float);
+    VkBufferCreateInfo vertBufferCreateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = vertBufSize,
+        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    };
+    VmaAllocationCreateInfo vertAllocCreateInfo
+    {
+        .flags = 0,
+        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+    };
+    CHECK_VK(vmaCreateBuffer(allocator_, &vertBufferCreateInfo, &vertAllocCreateInfo, &vertBuffer_, &vertAlloc_, nullptr));
+
+    VkBufferCreateInfo stagingBufferCreateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = vertBufSize,
+        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+    };
+    VmaAllocationCreateInfo stagingAllocCreateInfo
+    {
+        .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO,
+    };
+    CHECK_VK(vmaCreateBuffer(allocator_, &stagingBufferCreateInfo, &stagingAllocCreateInfo, &stagingBuffer_, &stagingAlloc_, nullptr));
+
+    void* mapped = nullptr;
+    CHECK_VK(vmaMapMemory(allocator_, stagingAlloc_, &mapped));
+    memcpy((char*)mapped, positions, vertBufSize);
+    vmaUnmapMemory(allocator_, stagingAlloc_);
+
+    CHECK_VK(vmaFlushAllocation(allocator_, stagingAlloc_, 0, vertBufSize));
+
+    // Copy vertices to device on initialization
+    VkCommandBuffer cmd{};
+    utils::vk::beginOneTimeCommands(cmd, device_, temporaryCmdPool_);
+
+    const VkBufferCopy copyRegion
+    {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = vertBufSize
+    };
+    vkCmdCopyBuffer(cmd, stagingBuffer_, vertBuffer_, 1, &copyRegion);
+
+    utils::vk::endOneTimeCommands(cmd, device_, temporaryCmdPool_, pCtx_->graphicsQueue);
 }
 
 void Renderer::createGraphicsPipeline()
@@ -188,10 +276,23 @@ void Renderer::createGraphicsPipeline()
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
 
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(float) * 2;
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription attributeDescription{};
+    attributeDescription.binding = 0;
+    attributeDescription.location = 0;
+    attributeDescription.format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescription.offset = 0;
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = 1;
+    vertexInputInfo.pVertexAttributeDescriptions = &attributeDescription;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -252,7 +353,7 @@ void Renderer::createGraphicsPipeline()
     layoutCreateInfo.pushConstantRangeCount = 0;
 
     // TODO: Name vulkan objects to identify them in validation messages
-    CHECK_VK(vkCreatePipelineLayout(device_, &layoutCreateInfo, nullptr, &graphicsPipelineLayout_))
+    CHECK_VK(vkCreatePipelineLayout(device_, &layoutCreateInfo, nullptr, &graphicsPipelineLayout_));
 
     std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
@@ -286,7 +387,7 @@ void Renderer::createGraphicsPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.pNext = &pipelineRenderingInfo;
 
-    CHECK_VK(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_))
+    CHECK_VK(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &graphicsPipeline_));
 
     vkDestroyShaderModule(device_, shaderModule, nullptr);
 }
@@ -388,6 +489,8 @@ void Renderer::recordCommandBuffer(VkCommandBuffer cb, const uint32_t imgIndex) 
     vkCmdBeginRendering(cb, &renderingInfo);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
+    constexpr VkDeviceSize vertexOffset = 0;
+    vkCmdBindVertexBuffers(cb, 0, 1, &vertBuffer_, &vertexOffset);
     vkCmdDraw(cb, 3, 1, 0, 0);
 
     // Render ImGui draw data within the same rendering scope

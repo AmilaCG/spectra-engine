@@ -9,7 +9,7 @@ add_executable(${PROJECT_NAME}
         src/main.cpp
         src/Application.cpp
         src/Renderer.cpp
-        src/vulkan/Context.cpp
+        src/vk/Context.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE

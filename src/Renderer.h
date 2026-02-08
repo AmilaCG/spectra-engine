@@ -9,9 +9,9 @@
 #include <tiny_gltf.h>
 #include <slang/slang-com-ptr.h>
 #include <slang/slang.h>
+#include <vk_mem_alloc.h>
 
-#include "vulkan/Context.h"
-#include "vulkan/ShaderModule.h"
+#include "vk/Context.h"
 
 namespace spectra {
 class Renderer {
@@ -23,6 +23,8 @@ public:
     void shutdown();
 
 private:
+    void initVma();
+    void createBuffers();
     void createGraphicsPipeline();
     void createCommandPool(VkCommandPool& commandPool);
     void allocateCommandBuffers(VkDevice device);
@@ -33,8 +35,7 @@ private:
     std::shared_ptr<vk::Context>        pCtx_;
     VkDevice                            device_ = VK_NULL_HANDLE;
 
-    std::unique_ptr<vk::ShaderModule>   pShaderTriangleVert_;
-    std::unique_ptr<vk::ShaderModule>   pShaderTriangleFrag_;
+    VmaAllocator                        allocator_ = VK_NULL_HANDLE;
 
     Slang::ComPtr<slang::IGlobalSession> slangGlobalSession_{};
 
@@ -65,6 +66,13 @@ private:
     std::vector<FrameData> frames_{};
 
     tinygltf::Model model_;
+
+    VkBuffer vertBuffer_ = VK_NULL_HANDLE;
+    VmaAllocation vertAlloc_{};
+    VkBuffer stagingBuffer_ = VK_NULL_HANDLE;
+    VmaAllocation stagingAlloc_{};
+
+    VkCommandPool temporaryCmdPool_ = VK_NULL_HANDLE;
 };
 } // spectra
 

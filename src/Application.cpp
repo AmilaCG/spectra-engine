@@ -11,6 +11,7 @@
 
 #include "Utilities.h"
 #include "Renderer.h"
+#include "vk/Error.h"
 
 namespace spectra {
 Application::Application()

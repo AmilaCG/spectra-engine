@@ -6,6 +6,7 @@
 #define VK_PBR_ENGINE_UTILITIES_H
 
 #include <vulkan/vulkan.h>
+#include "vk/Error.h"
 
 namespace spectra::utils {
 namespace vk {

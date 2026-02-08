@@ -64,6 +64,11 @@ void Context::init()
         .shaderDrawParameters = VK_TRUE,
     };
 
+    VkPhysicalDeviceVulkan12Features vk12Features {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .bufferDeviceAddress = VK_TRUE,
+    };
+
     VkPhysicalDeviceVulkan13Features vk13Features {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .synchronization2 = VK_TRUE,
@@ -72,8 +77,9 @@ void Context::init()
 
     vkb::DeviceBuilder deviceBuilder(vkbPhysicalDevice);
     auto deviceRet = deviceBuilder
-                     .add_pNext(&vk13Features)
                      .add_pNext(&vk11Features)
+                     .add_pNext(&vk12Features)
+                     .add_pNext(&vk13Features)
                      .build();
     if (!deviceRet)
     {
