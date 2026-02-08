@@ -24,7 +24,7 @@ void Context::init()
 {
     vkb::InstanceBuilder builder;
     auto instanceRet = builder.set_app_name("Spectra Engine")
-                              .require_api_version(1, 4)
+                              .require_api_version(1, 3)
                               .request_validation_layers()
                               .use_default_debug_messenger()
                               .build();
