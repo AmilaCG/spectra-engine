@@ -130,7 +130,7 @@ void Application::setupImGui()
     imageFormats = vkbSwapchain_.image_format;
 
     ImGui_ImplVulkan_InitInfo initInfo = {
-        .ApiVersion                  = VK_API_VERSION_1_4,
+        .ApiVersion                  = VK_API_VERSION_1_3,
         .Instance                    = pCtx_->instance,
         .PhysicalDevice              = pCtx_->physicalDevice,
         .Device                      = pCtx_->device,
