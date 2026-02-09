@@ -17,10 +17,10 @@ namespace spectra {
 class Renderer {
 public:
     Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, std::vector<VkImageView> swapchainImgViews);
+    ~Renderer();
 
     void loadScene(const std::string& scenePath);
     void render();
-    void shutdown();
 
 private:
     void initVma();

@@ -17,7 +17,6 @@ namespace spectra {
 Application::Application()
 {
     pCtx_ = std::make_shared<vk::Context>();
-    pCtx_->init();
 
     utils::vk::createTemporaryCommandPool(
         pCtx_->device, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
@@ -44,8 +43,6 @@ Application::~Application()
 
     vkbSwapchain_.destroy_image_views(swapchainImageViews_);
     vkb::destroy_swapchain(vkbSwapchain_);
-
-    pCtx_->deinit();
 }
 
 void Application::run()
@@ -62,9 +59,9 @@ void Application::run()
 
         pRenderer_->render();
     }
-    vkDeviceWaitIdle(pCtx_->device);
 
-    pRenderer_->shutdown();
+    // Prepare for destruction
+    vkDeviceWaitIdle(pCtx_->device);
 }
 
 void Application::createSwapchain()

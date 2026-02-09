@@ -6,21 +6,11 @@
 
 #include <format>
 #include <stdexcept>
-#include <iostream>
 
 #include "Error.h"
 
 namespace spectra::vk {
-Context::~Context()
-{
-    if (instance != VK_NULL_HANDLE)
-    {
-        std::cerr << "spectra::vk::Context has not been de-initialized!\n";
-        std::abort();
-    }
-}
-
-void Context::init()
+Context::Context()
 {
     vkb::InstanceBuilder builder;
     auto instanceRet = builder.set_app_name("Spectra Engine")
@@ -103,7 +93,7 @@ void Context::init()
     presentQueue = presentQueueRet.value();
 }
 
-void Context::deinit()
+Context::~Context()
 {
     vkb::destroy_device(vkbDevice);
     vkb::destroy_surface(vkbInstance_, surface);

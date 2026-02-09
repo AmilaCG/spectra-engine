@@ -35,6 +35,37 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
     createSyncObjects(device_);
 }
 
+Renderer::~Renderer()
+{
+    vmaDestroyBuffer(allocator_, stagingBuffer_, stagingAlloc_);
+    vmaDestroyBuffer(allocator_, vertBuffer_, vertAlloc_);
+
+    vmaDestroyAllocator(allocator_);
+
+    vkDestroyCommandPool(device_, temporaryCmdPool_, nullptr);
+
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroySemaphore(device_, availableSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroyFence(device_, inFlightFences_[i], VK_NULL_HANDLE);
+    }
+
+    for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
+    {
+        vkDestroySemaphore(device_, finishedSemaphores_[i], VK_NULL_HANDLE);
+        // swapchainImgFences_ aliases inFlightFences_ and is not owned; no need to destroy it here
+    }
+
+    // TODO: Have a separate class for pipelines and handle lifecycles from there
+    vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
+    vkDestroyPipelineLayout(device_, graphicsPipelineLayout_, nullptr);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroyCommandPool(device_, frames_[i].cmdPool, nullptr);
+    }
+}
+
 void Renderer::loadScene(const std::string& scenePath)
 {
     tinygltf::TinyGLTF loader;
@@ -136,37 +167,6 @@ void Renderer::render()
     CHECK_VK(vkQueuePresentKHR(pCtx_->presentQueue, &presentInfo))
 
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void Renderer::shutdown()
-{
-    vmaDestroyBuffer(allocator_, stagingBuffer_, stagingAlloc_);
-    vmaDestroyBuffer(allocator_, vertBuffer_, vertAlloc_);
-
-    vmaDestroyAllocator(allocator_);
-
-    vkDestroyCommandPool(device_, temporaryCmdPool_, nullptr);
-
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        vkDestroySemaphore(device_, availableSemaphores_[i], VK_NULL_HANDLE);
-        vkDestroyFence(device_, inFlightFences_[i], VK_NULL_HANDLE);
-    }
-
-    for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
-    {
-        vkDestroySemaphore(device_, finishedSemaphores_[i], VK_NULL_HANDLE);
-        // swapchainImgFences_ aliases inFlightFences_ and is not owned; no need to destroy it here
-    }
-
-    // TODO: Have a separate class for pipelines and handle lifecycles from there
-    vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
-    vkDestroyPipelineLayout(device_, graphicsPipelineLayout_, nullptr);
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        vkDestroyCommandPool(device_, frames_[i].cmdPool, nullptr);
-    }
 }
 
 void Renderer::initVma()
