@@ -1,32 +1,32 @@
 struct VIn
 {
-    [[vk::location(0)]] float2 pos : POSITION;
-    [[vk::location(1)]] float3 color : COLOR;
+    [[vk::location(0)]] float2 position;
+    [[vk::location(1)]] float3 color;
 }
 
 struct VOut
 {
-    float3 fragColor : LOCATION0;
-    float4 position  : SV_Position;
+    float4 position : SV_Position;
+    [[vk::location(0)]] float3 fragColor;
 };
 
 [shader("vertex")]
 VOut vertexMain(VIn input)
 {
     VOut o;
-    o.position  = float4(input.pos, 0.0, 1.0);
+    o.position = float4(input.position, 0.0, 1.0);
     o.fragColor = input.color;
     return o;
 }
 
 struct FIn
 {
-    float3 fragColor : LOCATION0;
+    [[vk::location(0)]] float3 fragColor;
 };
 
 struct FOut
 {
-    float4 outColor : LOCATION0;
+    [[vk::location(0)]] float4 outColor;
 };
 
 [shader("fragment")]
