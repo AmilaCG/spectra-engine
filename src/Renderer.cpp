@@ -192,11 +192,14 @@ void Renderer::initVma()
 
 void Renderer::createBuffers()
 {
-    constexpr float positions[6] = {
-        0.0f, -0.5f, 0.5f, 0.5, -0.5f, 0.5f
+    const std::vector<Vertex> vertices
+    {
+        { glm::vec2( 0.0f, -0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
+        { glm::vec2( 0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f) },
+        { glm::vec2(-0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
     };
 
-    VkDeviceSize vertBufSize = std::size(positions) * sizeof(float);
+    const VkDeviceSize vertBufSize = vertices.size() * sizeof(Vertex);
     VkBufferCreateInfo vertBufferCreateInfo
     {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -225,7 +228,7 @@ void Renderer::createBuffers()
 
     void* mapped = nullptr;
     CHECK_VK(vmaMapMemory(allocator_, stagingAlloc_, &mapped));
-    memcpy((char*)mapped, positions, vertBufSize);
+    memcpy(mapped, vertices.data(), vertBufSize);
     vmaUnmapMemory(allocator_, stagingAlloc_);
 
     CHECK_VK(vmaFlushAllocation(allocator_, stagingAlloc_, 0, vertBufSize));
@@ -276,23 +279,32 @@ void Renderer::createGraphicsPipeline()
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
 
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(float) * 2;
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    VkVertexInputBindingDescription vertexBinding{};
+    vertexBinding.binding = 0;
+    vertexBinding.stride = sizeof(Vertex);
+    vertexBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    VkVertexInputAttributeDescription attributeDescription{};
-    attributeDescription.binding = 0;
-    attributeDescription.location = 0;
-    attributeDescription.format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescription.offset = 0;
+    std::vector<VkVertexInputAttributeDescription> vertexAttributes = {
+        {
+            .location = 0,
+            .binding = vertexBinding.binding,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = 0
+        },
+        {
+            .location = 1,
+            .binding = vertexBinding.binding,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = sizeof(Vertex::position)
+        }
+    };
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = 1;
-    vertexInputInfo.pVertexAttributeDescriptions = &attributeDescription;
+    vertexInputInfo.pVertexBindingDescriptions = &vertexBinding;
+    vertexInputInfo.vertexAttributeDescriptionCount = vertexAttributes.size();
+    vertexInputInfo.pVertexAttributeDescriptions = vertexAttributes.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -489,8 +501,10 @@ void Renderer::recordCommandBuffer(VkCommandBuffer cb, const uint32_t imgIndex) 
     vkCmdBeginRendering(cb, &renderingInfo);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
-    constexpr VkDeviceSize vertexOffset = 0;
-    vkCmdBindVertexBuffers(cb, 0, 1, &vertBuffer_, &vertexOffset);
+
+    VkDeviceSize vertOffset = 0;
+    vkCmdBindVertexBuffers(cb, 0, 1, &vertBuffer_, &vertOffset);
+
     vkCmdDraw(cb, 3, 1, 0, 0);
 
     // Render ImGui draw data within the same rendering scope

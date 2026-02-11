@@ -10,6 +10,7 @@
 #include <slang/slang-com-ptr.h>
 #include <slang/slang.h>
 #include <vk_mem_alloc.h>
+#include <glm/glm.hpp>
 
 #include "vk/Context.h"
 
@@ -66,6 +67,12 @@ private:
     std::vector<FrameData> frames_{};
 
     tinygltf::Model model_;
+
+    struct Vertex
+    {
+        glm::vec2 position;
+        glm::vec3 color;
+    };
 
     VkBuffer vertBuffer_ = VK_NULL_HANDLE;
     VmaAllocation vertAlloc_{};
