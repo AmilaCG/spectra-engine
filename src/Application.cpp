@@ -28,7 +28,7 @@ Application::Application()
     setupImGui();
 
     pRenderer_ = std::make_unique<Renderer>(pCtx_, vkbSwapchain_, swapchainImageViews_);
-    pRenderer_->loadScene("scenes/SunglassesKhronos.glb");
+    pRenderer_->loadScene("scenes/BoxVertexColors.glb");
 }
 
 Application::~Application()
