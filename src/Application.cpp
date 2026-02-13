@@ -52,11 +52,6 @@ void Application::run()
     {
         glfwPollEvents();
 
-        // Build ImGui frame and UI
-        ImGui_ImplGlfw_NewFrame();
-        ImGui_ImplVulkan_NewFrame();
-        ImGui::NewFrame();
-
         pRenderer_->render();
     }
 

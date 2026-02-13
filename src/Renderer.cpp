@@ -5,6 +5,7 @@
 #include "Renderer.h"
 
 #include <utility>
+#include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 
 #define TINYGLTF_IMPLEMENTATION
@@ -96,6 +97,11 @@ void Renderer::loadScene(const std::string& scenePath)
 
 void Renderer::render()
 {
+    if (model_.scenes.empty())
+    {
+        return;
+    }
+
     vkWaitForFences(device_, 1, &inFlightFences_[currentFrame_], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex = 0;
@@ -119,6 +125,11 @@ void Renderer::render()
     swapchainImgFences_[imageIndex] = inFlightFences_[currentFrame_];
 
     CHECK_VK(vkResetFences(device_, 1, &inFlightFences_[currentFrame_]))
+
+    // Build ImGui frame and UI
+    ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplVulkan_NewFrame();
+    ImGui::NewFrame();
 
     ImGui::Begin("Stats");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
