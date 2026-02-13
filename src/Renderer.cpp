@@ -44,15 +44,18 @@ Renderer::~Renderer()
 
     vkDestroyCommandPool(device_, temporaryCmdPool_, nullptr);
 
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (const auto& semaphore : availableSemaphores_)
     {
-        vkDestroySemaphore(device_, availableSemaphores_[i], VK_NULL_HANDLE);
-        vkDestroyFence(device_, inFlightFences_[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(device_, semaphore, VK_NULL_HANDLE);
+    }
+    for (const auto& fence : inFlightFences_)
+    {
+        vkDestroyFence(device_, fence, VK_NULL_HANDLE);
     }
 
-    for (uint32_t i = 0; i < vkbSwapchain_.image_count; i++)
+    for (const auto& semaphore : finishedSemaphores_)
     {
-        vkDestroySemaphore(device_, finishedSemaphores_[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(device_, semaphore, VK_NULL_HANDLE);
         // swapchainImgFences_ aliases inFlightFences_ and is not owned; no need to destroy it here
     }
 
@@ -60,9 +63,9 @@ Renderer::~Renderer()
     vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
     vkDestroyPipelineLayout(device_, graphicsPipelineLayout_, nullptr);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (const auto& frame : frames_)
     {
-        vkDestroyCommandPool(device_, frames_[i].cmdPool, nullptr);
+        vkDestroyCommandPool(device_, frame.cmdPool, nullptr);
     }
 }
 
