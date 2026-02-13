@@ -25,7 +25,7 @@ public:
 
 private:
     void initVma();
-    void createBuffers();
+    void createBuffers(const tinygltf::Model& model);
     void createGraphicsPipeline();
     void createCommandPool(VkCommandPool& commandPool);
     void allocateCommandBuffers(VkDevice device);
@@ -76,6 +76,8 @@ private:
 
     VkBuffer vertBuffer_ = VK_NULL_HANDLE;
     VmaAllocation vertAlloc_{};
+    VkBuffer indexBuffer_ = VK_NULL_HANDLE;
+    VmaAllocation indexAlloc_{};
     VkBuffer stagingBuffer_ = VK_NULL_HANDLE;
     VmaAllocation stagingAlloc_{};
 

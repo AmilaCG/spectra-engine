@@ -1,7 +1,7 @@
 struct VIn
 {
-    [[vk::location(0)]] float2 position;
-    [[vk::location(1)]] float3 color;
+    [[vk::location(0)]] float3 position;
+    //[[vk::location(1)]] float3 color;
 }
 
 struct VOut
@@ -14,8 +14,9 @@ struct VOut
 VOut vertexMain(VIn input)
 {
     VOut o;
-    o.position = float4(input.position, 0.0, 1.0);
-    o.fragColor = input.color;
+    o.position = float4(input.position, 1.0);
+    //o.fragColor = input.color;
+    o.fragColor = float3(1.0, 1.0, 0.0);
     return o;
 }
 

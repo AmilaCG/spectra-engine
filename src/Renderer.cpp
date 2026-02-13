@@ -30,7 +30,6 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
         device_, pCtx_->vkbDevice.get_queue_index(vkb::QueueType::graphics).value(), temporaryCmdPool_);
 
     initVma();
-    createBuffers();
     createGraphicsPipeline();
     allocateCommandBuffers(device_);
     createSyncObjects(device_);
@@ -39,6 +38,7 @@ Renderer::Renderer(std::shared_ptr<vk::Context> pCtx, vkb::Swapchain swapchain, 
 Renderer::~Renderer()
 {
     vmaDestroyBuffer(allocator_, stagingBuffer_, stagingAlloc_);
+    vmaDestroyBuffer(allocator_, indexBuffer_, indexAlloc_);
     vmaDestroyBuffer(allocator_, vertBuffer_, vertAlloc_);
 
     vmaDestroyAllocator(allocator_);
@@ -93,6 +93,8 @@ void Renderer::loadScene(const std::string& scenePath)
     {
         printf("Failed to parse glTF: %s\n", scenePath.c_str());
     }
+
+    createBuffers(model_);
 }
 
 void Renderer::render()
@@ -204,7 +206,7 @@ void Renderer::initVma()
     CHECK_VK(vmaCreateAllocator(&allocatorCreateInfo, &allocator_));
 }
 
-void Renderer::createBuffers()
+void Renderer::createBuffers(const tinygltf::Model& model)
 {
     const std::vector<Vertex> vertices
     {
@@ -213,7 +215,7 @@ void Renderer::createBuffers()
         { glm::vec2(-0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
     };
 
-    const VkDeviceSize vertBufSize = vertices.size() * sizeof(Vertex);
+    const VkDeviceSize vertBufSize = model.accessors[1].count * sizeof(glm::vec3);
     VkBufferCreateInfo vertBufferCreateInfo
     {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -226,6 +228,20 @@ void Renderer::createBuffers()
         .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
     };
     CHECK_VK(vmaCreateBuffer(allocator_, &vertBufferCreateInfo, &vertAllocCreateInfo, &vertBuffer_, &vertAlloc_, nullptr));
+
+    const VkDeviceSize indexBufSize = model.accessors[0].count * sizeof(uint16_t);
+    VkBufferCreateInfo indexBufferCreateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = indexBufSize,
+        .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    };
+    VmaAllocationCreateInfo indexAllocCreateInfo
+    {
+        .flags = 0,
+        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+    };
+    CHECK_VK(vmaCreateBuffer(allocator_, &indexBufferCreateInfo, &indexAllocCreateInfo, &indexBuffer_, &indexAlloc_, nullptr));
 
     VkBufferCreateInfo stagingBufferCreateInfo
     {
@@ -242,24 +258,48 @@ void Renderer::createBuffers()
 
     void* mapped = nullptr;
     CHECK_VK(vmaMapMemory(allocator_, stagingAlloc_, &mapped));
-    memcpy(mapped, vertices.data(), vertBufSize);
+    memcpy(mapped, model.buffers[0].data.data() + indexBufSize, vertBufSize);
     vmaUnmapMemory(allocator_, stagingAlloc_);
-
     CHECK_VK(vmaFlushAllocation(allocator_, stagingAlloc_, 0, vertBufSize));
 
-    // Copy vertices to device on initialization
-    VkCommandBuffer cmd{};
-    utils::vk::beginOneTimeCommands(cmd, device_, temporaryCmdPool_);
-
-    const VkBufferCopy copyRegion
     {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size = vertBufSize
-    };
-    vkCmdCopyBuffer(cmd, stagingBuffer_, vertBuffer_, 1, &copyRegion);
+        // Copy vertices to device on initialization
+        VkCommandBuffer cmd{};
+        utils::vk::beginOneTimeCommands(cmd, device_, temporaryCmdPool_);
 
-    utils::vk::endOneTimeCommands(cmd, device_, temporaryCmdPool_, pCtx_->graphicsQueue);
+        const VkBufferCopy copyRegion
+        {
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = vertBufSize
+        };
+        vkCmdCopyBuffer(cmd, stagingBuffer_, vertBuffer_, 1, &copyRegion);
+
+        utils::vk::endOneTimeCommands(cmd, device_, temporaryCmdPool_, pCtx_->graphicsQueue);
+    }
+
+    // Transfer index buffer
+    mapped = nullptr;
+    CHECK_VK(vmaMapMemory(allocator_, stagingAlloc_, &mapped));
+    memcpy(mapped, model_.buffers[0].data.data(), indexBufSize);
+    vmaUnmapMemory(allocator_, stagingAlloc_);
+    CHECK_VK(vmaFlushAllocation(allocator_, stagingAlloc_, 0, indexBufSize));
+
+    {
+        // Copy vertices to device on initialization
+        VkCommandBuffer cmd{};
+        utils::vk::beginOneTimeCommands(cmd, device_, temporaryCmdPool_);
+
+        const VkBufferCopy copyRegion
+        {
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = indexBufSize
+        };
+        vkCmdCopyBuffer(cmd, stagingBuffer_, indexBuffer_, 1, &copyRegion);
+
+        utils::vk::endOneTimeCommands(cmd, device_, temporaryCmdPool_, pCtx_->graphicsQueue);
+    }
 }
 
 void Renderer::createGraphicsPipeline()
@@ -295,22 +335,22 @@ void Renderer::createGraphicsPipeline()
 
     VkVertexInputBindingDescription vertexBinding{};
     vertexBinding.binding = 0;
-    vertexBinding.stride = sizeof(Vertex);
+    vertexBinding.stride = sizeof(glm::vec3);
     vertexBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     std::vector<VkVertexInputAttributeDescription> vertexAttributes = {
         {
             .location = 0,
             .binding = vertexBinding.binding,
-            .format = VK_FORMAT_R32G32_SFLOAT,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
             .offset = 0
         },
-        {
-            .location = 1,
-            .binding = vertexBinding.binding,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            .offset = sizeof(Vertex::position)
-        }
+        // {
+        //     .location = 1,
+        //     .binding = vertexBinding.binding,
+        //     .format = VK_FORMAT_R32G32B32_SFLOAT,
+        //     .offset = sizeof(Vertex::position)
+        // }
     };
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
@@ -518,8 +558,10 @@ void Renderer::recordCommandBuffer(VkCommandBuffer cb, const uint32_t imgIndex) 
 
     VkDeviceSize vertOffset = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &vertBuffer_, &vertOffset);
+    vkCmdBindIndexBuffer(cb, indexBuffer_, 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdDraw(cb, 3, 1, 0, 0);
+    // vkCmdDraw(cb, model_.accessors[0].count, 1, 0, 0);
+    vkCmdDrawIndexed(cb, 36, 1, 0, 0, 0);
 
     // Render ImGui draw data within the same rendering scope
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb, VK_NULL_HANDLE);
