@@ -208,13 +208,6 @@ void Renderer::initVma()
 
 void Renderer::createBuffers(const tinygltf::Model& model)
 {
-    const std::vector<Vertex> vertices
-    {
-        { glm::vec2( 0.0f, -0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
-        { glm::vec2( 0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f) },
-        { glm::vec2(-0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
-    };
-
     const VkDeviceSize vertBufSize = model.accessors[1].count * sizeof(glm::vec3);
     VkBufferCreateInfo vertBufferCreateInfo
     {
@@ -281,7 +274,7 @@ void Renderer::createBuffers(const tinygltf::Model& model)
     // Transfer index buffer
     mapped = nullptr;
     CHECK_VK(vmaMapMemory(allocator_, stagingAlloc_, &mapped));
-    memcpy(mapped, model_.buffers[0].data.data(), indexBufSize);
+    memcpy(mapped, model.buffers[0].data.data(), indexBufSize);
     vmaUnmapMemory(allocator_, stagingAlloc_);
     CHECK_VK(vmaFlushAllocation(allocator_, stagingAlloc_, 0, indexBufSize));
 
